@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Đăng Nhập - Smart Travel</title>
+    <style>
+        /* Import font chữ */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+        /* --- BẢNG MÀU CHÍNH--- */
+        :root {
+            --primary-color: #2D6A4F;
+            --accent-color: #E76F51;
+            --panel-light: #FBF6F0;
+            --bg-light: #FBF6F0;
+            --text-dark: #1B4332;
+            --text-light: #587467;
+            --border-light: #DDE8E4;
+            --shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        /* CSS Reset cơ bản */
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            height: 100%;
+            color: var(--text-dark); /* Thêm màu chữ cơ bản */
+        }
+
+        /* --- BỐ CỤC CHÍNH (Header, Main, Footer) --- */
+        .page-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Đảm bảo trang cao tối thiểu 100% */
+            background-color: var(--bg-light);
+        }
+
+        /* Dải header trên cùng */
+        header {
+            background-color: var(--primary-color);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        /* Dải footer dưới cùng */
+        footer {
+            background-color: var(--panel-light);
+            color: var(--text-light);
+            text-align: center;
+            padding: 15px;
+            font-size: 0.8em;
+        }
+
+        /* Khu vực nội dung chính (căn giữa) */
+        main {
+            flex-grow: 1; /* Đẩy footer xuống dưới */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 0;
+        }
+
+        /* --- KHUNG ĐĂNG NHẬP (Cái hộp ở giữa) --- */
+        .login-box {
+            width: 400px;
+            background-color: #FFFFFF; /* Nền trắng */
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden; /* Giữ bo góc */
+        }
+
+        /* Dải màu trang trí trên đầu hộp */
+        .login-box-header {
+            background-color: var(--primary-color);
+            padding: 20px;
+        }
+
+        /* Tiêu đề "Đăng nhập" */
+        .login-box h1 {
+            text-align: center;
+            color: var(--text-dark);
+            font-size: 1.8em;
+            margin-top: 25px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* Vùng chứa form */
+        .login-form {
+            padding: 0 30px 30px 30px;
+        }
+
+        /* Hộp thông báo (màu be) */
+        .info-box {
+            background-color: var(--panel-light);
+            border: 1px solid var(--border-light);
+            border-radius: 5px;
+            padding: 12px;
+            font-size: 0.9em;
+            color: var(--text-light);
+            margin-bottom: 20px;
+            transition: all 0.3s ease; /* Thêm hiệu ứng chuyển đổi */
+        }
+
+            /* --- [CSS MỚI] Kiểu cho hộp thông báo lỗi --- */
+            .info-box.error {
+                background-color: #FDEBEA; /* Màu nền đỏ nhạt */
+                border-color: #E76F51; /* Viền màu cam/đỏ */
+                color: #A93226; /* Chữ màu đỏ đậm */
+                font-weight: 600;
+            }
+
+
+        /* Nhóm (Label + Ô nhập) */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+            .input-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 600; /* Đổi sang 600 */
+                color: var(--text-dark);
+                font-size: 0.95em;
+            }
+            /* Kiểu ô nhập */
+            .input-group input {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid var(--border-light);
+                border-radius: 5px;
+                box-sizing: border-box;
+                background-color: #fffafa;
+                font-family: 'Poppins', sans-serif; /* Đảm bảo input cũng dùng font */
+                color: var(--text-dark);
+                font-size: 1em;
+            }
+
+        /* Hàng chứa (Checkbox + Nút bấm) */
+        .options-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+            .options-group label {
+                font-size: 0.9em;
+                color: var(--text-light);
+            }
+
+        /* Kiểu nút "Đăng nhập" */
+        .login-button {
+            background-color: var(--accent-color); /* Màu cam */
+            color: white; /* Chữ trắng (đồng bộ với trang chính) */
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600; /* Giống trang chính */
+            font-size: 1em;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            font-family: 'Poppins', sans-serif; /* Đảm bảo nút cũng dùng font */
+        }
+            /* Kiểu khi di chuột vào nút */
+            .login-button:hover {
+                background-color: var(--primary-color); /* Đổi sang màu xanh */
+                color: white; /* Chữ trắng */
+            }
+
+        /* Nhóm link "Quên mật khẩu" */
+        .links-group {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+            .links-group a {
+                color: var(--text-light);
+                text-decoration: none;
+                margin: 0 10px;
+                transition: color 0.2s ease;
+            }
+
+                .links-group a:hover {
+                    text-decoration: underline;
+                    color: var(--accent-color); /* Đổi sang màu cam khi hover */
+                }
+    </style>
+</head>
+<body>
+
+    <div class="page-container">
+
+        <header>
+        </header>
+
+        <main>
+            <div class="login-box">
+                <div class="login-box-header"></div>
+
+                <h1>Đăng nhập</h1>
+
+                <form class="login-form">
+
+                    <div class="info-box">
+                        💡 Hãy dùng tài khoản của bạn để đăng nhập.
+                    </div>
+
+                    <div class="input-group">
+                        <label for="email">Email đăng nhập</label>
+                        <input type="email" id="email" name="email">
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Mật khẩu</label>
+                        <input type="password" id="password" name="password">
+                    </div>
+
+                    <div class="options-group">
+                        <label>
+                            <input type="checkbox" name="remember"> Lưu thông tin
+                        </label>
+                        <button type="submit" class="login-button">Đăng nhập</button>
+                    </div>
+
+                    <div class="links-group">
+                        <a href="#" id="forgot-password-link">Quên mật khẩu?</a>
+                        <a href="#" id="activate-account-link">Kích hoạt tài khoản?</a>
+                    </div>
+
+                </form>
+            </div>
+            </main>
+
+            <footer>
+                <p>Phát triển bởi Smart Travel Team</p>
+            </footer>
+
+    </div>
+
+    <script src="assets/js/auth.js"></script>
+</body>
+</html>

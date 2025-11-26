@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản đồ - Smart Travel System</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        /* Import font chữ */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+        /* --- BẢNG MÀU CHÍNH --- */
+        :root {
+            --primary-color: #2D6A4F;
+            --accent-color: #E76F51;
+            --panel-light: #FBF6F0;
+            --text-dark: #1B4332;
+            --border-light: #DDE8E4;
+            --shadow: 0 4px 15px rgba(0,0,0,0.08);
+            --selected-bg: #e6f0ed;
+        }
+
+        /* --- CÀI ĐẶT CHUNG --- */
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-dark);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+        }
+
+        /* --- KHUNG ĐIỀU KHIỂN (BÊN TRÁI) --- */
+        #control-panel {
+            width: 340px;
+            flex-shrink: 0;
+            height: 100vh;
+            background-color: var(--panel-light);
+            box-shadow: var(--shadow);
+            border-right: 3px solid var(--accent-color);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
+            overflow: hidden;
+            z-index: 5;
+        }
+
+        #panel-header {
+            padding: 20px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+            width: 340px;
+            box-sizing: border-box;
+        }
+
+        #panel-header h2 {
+            color: white;
+            margin: 0;
+            font-size: 1.6em;
+            gap: 12px;
+        }
+
+        #panel-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+
+        #panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            width: 340px;
+            box-sizing: border-box;
+        }
+
+        /* --- BẢN ĐỒ (Ở GIỮA) --- */
+        #big-map {
+            flex: 1;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* --- KHUNG CHI TIẾT (BÊN PHẢI) --- */
+        #details-panel {
+            width: 340px;
+            flex-shrink: 0;
+            height: 100vh;
+            background-color: var(--panel-light);
+            box-shadow: var(--shadow);
+            border-left: 3px solid var(--accent-color);
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            z-index: 5;
+            transition: width 0.3s ease;
+        }
+
+        #details-header {
+            padding: 20px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            flex-shrink: 0;
+        }
+
+        #details-header h2 {
+            color: white;
+            margin: 0;
+            font-size: 1.6em;
+        }
+
+        #details-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-top: 15px;
+            position: relative;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-color);
+            margin-top: 4px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            margin-top: 8px;
+            background-color: #fffafa;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-dark);
+        }
+
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2C%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%232D6A4F%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-13%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2013l127.1%20127.1c3.6%203.6%207.8%205.4%2013%205.4s9.4-1.8%2013-5.4L287%2095.2c3.6-3.6%205.4-7.8%205.4-13%200-5-1.8-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 15px top 50%;
+            background-size: 10px;
+        }
+
+        .waypoint-box {
+            background: white;
+            padding: 8px 12px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent-color);
+            box-shadow: var(--shadow);
+        }
+
+        .waypoint-box label {
+            font-size: 0.9em;
+        }
+
+        .waypoint-box .input-group i {
+            margin-top: 0;
+            font-size: 0.9em;
+            left: 12px;
+        }
+
+        .waypoint-box .input-group {
+            margin-top: 4px;
+        }
+
+        .waypoint-box .input-group input[type="text"] {
+            padding-top: 7px;
+            padding-bottom: 7px;
+            padding-left: 36px;
+            font-size: 0.9em;
+            margin-top: 2px;
+            border-radius: 6px;
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            margin-top: 20px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button.secondary {
+            background: #fff;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        #route-summary {
+            margin-top: 30px;
+        }
+
+        .fake-input {
+            display: block;
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            margin-top: 8px;
+            background-color: #fffafa;
+            box-sizing: border-box;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .route-step-item {
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .route-step-item:hover {
+            background-color: var(--border-light);
+        }
+
+        .route-step-item.selected {
+            background-color: var(--selected-bg);
+            border: 2px solid var(--primary-color);
+        }
+
+        .route-step-item.selected .input-group i {
+            margin-top: 2px;
+        }
+
+        #route-steps-container .input-group i {
+            margin-top: 0;
+        }
+
+        .smart-popup {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .smart-popup h3 {
+            font-size: 1.1em;
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 5px;
+        }
+
+        .smart-popup p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+
+        .smart-popup .popup-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .smart-popup .popup-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 10px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+
+        .smart-popup .popup-btn.alt {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        #ai-chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease, background-color 0.3s ease, right 0.3s ease;
+        }
+
+        #ai-chat-button:hover {
+            transform: scale(1.1);
+            background-color: var(--accent-color);
+        }
+
+        body.details-panel-visible #ai-chat-button {
+            right: 370px;
+        }
+
+        #ai-chat-container {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 320px;
+            height: 450px;
+            background-color: var(--panel-light);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-light);
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: right 0.3s ease;
+        }
+
+        body.details-panel-visible #ai-chat-container {
+            right: 370px;
+        }
+
+        .chat-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            font-weight: 600;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-chat {
+            font-size: 24px;
+            font-weight: 300;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-chat:hover {
+            opacity: 0.8;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #FFFFFF;
+        }
+
+        .chat-footer {
+            padding: 10px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            gap: 10px;
+            background: var(--panel-light);
+        }
+
+        .chat-footer input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            width: 100%;
+            margin-top: 0;
+        }
+
+        .chat-footer button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 15px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 0;
+        }
+
+        #toggle-panel-btn {
+            position: fixed;
+            top: 50%;
+            left: 340px;
+            transform: translateY(-50%);
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 60px;
+            cursor: pointer;
+            border-radius: 0 10px 10px 0;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transition: left 0.3s ease, background-color 0.3s ease;
+        }
+
+        #toggle-panel-btn:hover {
+            background: var(--accent-color);
+        }
+
+        body.panel-collapsed #control-panel {
+            width: 0px;
+            padding-left: 0;
+            padding-right: 0;
+            border-right-width: 0;
+        }
+
+        body.panel-collapsed #toggle-panel-btn {
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="control-panel">
+
+        <div id="panel-header">
+            <h2><i class="fas fa-map-location-dot"></i> Smart Travel</h2>
+            <p>Hệ thống Gợi ý Du lịch Thông minh</p>
+        </div>
+
+        <div id="panel-content">
+
+            <div id="route-builder">
+                <h2><i class="fas fa-route"></i> Lộ trình của bạn</h2>
+
+                <form id="route-form">
+                    <div class="input-group">
+                        <label>Điểm đi:</label>
+                        <i class="fas fa-map-marker-alt"></i>
+                        <input type="text" id="start-point" placeholder="Nhập điểm xuất phát..." value="Dinh Độc Lập">
+                    </div>
+                    <div class="input-group">
+                        <label>Điểm đến:</label>
+                        <i class="fas fa-location-dot"></i>
+                        <input type="text" id="end-point" placeholder="Nhập điểm đến..." value="Chợ Bến Thành">
+                    </div>
+                    <div class="input-group">
+                        <label>Thời gian (dự kiến):</label>
+                        <i class="fas fa-clock"></i>
+                        <input type="text" id="start-time" placeholder="VD: 5h">
+                    </div>
+                    <div class="input-group">
+                        <label>Ngân sách:</label>
+                        <i class="fas fa-dollar-sign"></i>
+                        <select id="budget">
+                            <option value="budget">Tiết kiệm</option>
+                            <option value="mid" selected>Trung bình</option>
+                            <option value="luxury">Cao cấp</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Sở thích cá nhân:</label>
+                        <i class="fas fa-heart"></i>
+                        <input type="text" id="interests" placeholder="VD: Cà phê, lịch sử,...">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Số điểm muốn ghé:</label>
+                        <i class="fas fa-list-ol"></i>
+                        <input type="number" id="waypointCount" min="0" max="10" placeholder="VD: 1" value="1">
+                    </div>
+
+                    <div id="waypointContainer">
+                        <div class="waypoint-box">
+                            <label><b>Điểm ghé 1:</b></label>
+                            <div class="input-group">
+                                <i class="fas fa-location-dot"></i>
+                                <input type="text" class="waypoint-input" placeholder="Nhập tên điểm ghé 1" value="Nhà thờ Đức Bà">
+                            </div>
+                            <div class="input-group" style="margin-top: 4px;">
+                                <i class="fas fa-hourglass-half"></i>
+                                <input type="text" class="waypoint-duration-input" placeholder="Thời gian ghé (VD: 30 phút)" value="30 phút">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit"><i class="fas fa-search"></i> Tìm đường</button>
+                </form>
+            </div>
+
+            <div id="route-summary" style="display: none;">
+                <h2><i class="fas fa-map-signs"></i> Lộ trình đề xuất</h2>
+                <p style="font-size: 0.9em; opacity: 0.8; margin-top: -10px;">
+                    Nhấn để xem chi tiết. Giữ Ctrl (hoặc Cmd) và nhấn để chọn nhiều điểm.
+                </p>
+
+                <div id="route-steps-container">
+                </div>
+
+                <p id="modify-error-message" style="display: none; color: #D9534F; font-size: 0.9em; margin-bottom: 15px; text-align: center; font-weight: 600;"></p>
+
+                <div class="route-summary-buttons" style="margin-top: 20px; display: flex; gap: 10px;">
+
+                    <button id="modify-segment-btn" class="secondary" style="background-color: var(--accent-color); color: white; border-color: var(--accent-color); margin-top: 0; margin-right: 10px;">
+                        <i class="fas fa-edit"></i> Sửa lộ trình (2 điểm)
+                    </button>
+
+                    <button id="edit-route-btn" class="secondary" style="margin-top: 0; margin-right: 0;">
+                        <i class="fas fa-arrow-left"></i> Quay lại
+                    </button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="big-map"></div>
+
+    <div id="details-panel">
+        <div id="details-header">
+            <h2><i class="fas fa-info-circle"></i> Chi tiết Địa điểm</h2>
+        </div>
+        <div id="details-content">
+            <p style="text-align: center; color: var(--text-dark); margin-top: 20px;">
+                Vui lòng chọn một điểm trong lộ trình bên trái để xem chi tiết.
+            </p>
+        </div>
+    </div>
+
+    <div id="ai-chat-container">
+        <div class="chat-header">
+            <span>Trợ lý Du lịch AI</span>
+            <span class="close-chat" id="close-chat-btn">&times;</span>
+        </div>
+        <div class="chat-body">
+            <p style="text-align: center; color: var(--text-light); margin-top: 20px;">
+                Chào bạn! Tôi có thể giúp gì cho chuyến đi?
+            </p>
+        </div>
+        <div class="chat-footer">
+            <input type="text" placeholder="Nhập câu hỏi...">
+            <button><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <button id="ai-chat-button" title="Hỏi AI Trợ lý Du lịch">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <button id="toggle-panel-btn" title="Thu bảng điều khiển">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="assets/js/ui-interactions.js"></script>
+    <script src="assets/js/map-core.js"></script>
+
+</body>
+</html>
