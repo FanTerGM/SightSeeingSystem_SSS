@@ -8,7 +8,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 import uuid
 
-from models import Category, LocationCategory, Location
+from app.models import Category, LocationCategory, Location
 from .base_service import BaseService
 
 

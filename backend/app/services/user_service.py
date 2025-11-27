@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import uuid
 
-from models import User, UserPreference
+from app.models import User, UserPreference
 from .base_service import BaseService
 
 

@@ -2,24 +2,24 @@
 SSS (Sight Seeing System) - FastAPI Backend
 Main application file with API endpoints
 """
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel, EmailStr
-from datetime import date, datetime
-import uuid
+from app import models
+from app.database import get_db
 
-from database import get_db, engine
-import models
-
-# Create tables (if not exists)
-models.Base.metadata.create_all(bind=engine)
+from app.routers import (
+    user_router,
+    category_router,
+    location_router,
+    review_router,
+    itinerary_router,
+)
 
 app = FastAPI(
     title="SSS API",
     description="SightSeeing System - Smart Tourism API for Ho Chi Minh City",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS middleware
@@ -31,99 +31,78 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ============================================
-# PYDANTIC SCHEMAS
+# API ENDPOINTS
 # ============================================
 
-class CategoryResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    name_vi: str
-    icon: Optional[str]
-    
-    class Config:
-        from_attributes = True
 
-class LocationBase(BaseModel):
-    name: str
-    name_vi: str
-    description: Optional[str]
-    address: str
-    district: Optional[str]
-    latitude: float
-    longitude: float
-    phone_number: Optional[str]
-    website: Optional[str]
-    price_level: Optional[str]
-    average_visit_duration: Optional[int]
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "🎯 SSS API - SightSeeing System for Ho Chi Minh City",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "status": "running",
+    }
 
-class LocationResponse(LocationBase):
-    id: uuid.UUID
-    rating: Optional[float]
-    review_count: int
-    is_active: bool
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
-class UserCreate(BaseModel):
-    email: EmailStr
-    full_name: str
-    phone_number: Optional[str]
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        db.execute("SELECT 1")
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Database error: {str(e)}")
 
-class UserResponse(BaseModel):
-    id: uuid.UUID
-    email: str
-    full_name: str
-    phone_number: Optional[str]
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
-class ReviewCreate(BaseModel):
-    location_id: uuid.UUID
-    user_id: uuid.UUID
-    rating: int
-    comment: Optional[str]
-    visit_date: Optional[date]
+# ==========================================
+# Routers
+# ============================================
 
-class ReviewResponse(BaseModel):
-    id: uuid.UUID
-    location_id: uuid.UUID
-    user_id: uuid.UUID
-    rating: int
-    comment: Optional[str]
-    visit_date: Optional[date]
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+app.include_router(user_router)
+app.include_router(category_router)
+app.include_router(location_router)
+app.include_router(review_router)
+app.include_router(itinerary_router)
 
-class ItineraryCreate(BaseModel):
-    user_id: uuid.UUID
-    name: str
-    description: Optional[str]
-    start_point: dict
-    end_point: Optional[dict]
-    trip_date: Optional[date]
 
-class ItineraryResponse(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    name: str
-    description: Optional[str]
-    start_point: dict
-    end_point: Optional[dict]
-    total_distance: Optional[float]
-    estimated_duration: Optional[int]
-    trip_date: Optional[date]
-    status: str
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+# ============================================
+# STATISTICS ENDPOINTS
+# ============================================
+
+
+@app.get("/api/stats")
+async def get_statistics(db: Session = Depends(get_db)):
+    """Get general statistics"""
+    total_locations = (
+        db.query(models.Location).filter(models.Location.is_active == True).count()
+    )
+    total_reviews = db.query(models.Review).count()
+    total_users = db.query(models.User).count()
+    total_categories = db.query(models.Category).count()
+
+    avg_rating = (
+        db.query(models.Location)
+        .filter(models.Location.is_active == True, models.Location.rating.isnot(None))
+        .with_entities(models.Location.rating)
+        .all()
+    )
+
+    avg_rating_value = (
+        sum(r[0] for r in avg_rating if r[0]) / len(avg_rating) if avg_rating else 0
+    )
+
+    return {
+        "total_locations": total_locations,
+        "total_reviews": total_reviews,
+        "total_users": total_users,
+        "total_categories": total_categories,
+        "average_rating": round(avg_rating_value, 2),
+    }
 
 
 if __name__ == "__main__":

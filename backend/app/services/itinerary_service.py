@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from datetime import date
 import uuid
 
-from models import Itinerary, ItineraryLocation, Location, User
+from app.models import Itinerary, ItineraryLocation, Location, User
 from .base_service import BaseService
 
 
