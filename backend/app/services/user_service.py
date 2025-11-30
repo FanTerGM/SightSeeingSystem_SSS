@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import uuid
 
-from app.models import User, UserPreference
+from app.models import User, UserPreference, Review, Location
 from .base_service import BaseService
 
 
@@ -19,11 +19,11 @@ class UserService(BaseService[User]):
     
     Handles user creation, retrieval, updates, and preference management.
     """
-    
+
     def __init__(self, db: Session):
         """Initialize UserService with database session."""
         super().__init__(User, db)
-    
+
     def create_user(
         self,
         email: str,
@@ -53,13 +53,13 @@ class UserService(BaseService[User]):
         if existing_user:
             print(f"Email {email} already exists")
             return None
-        
+
         return self.create(
             email=email,
             full_name=full_name,
             phone_number=phone_number
         )
-    
+
     def get_by_email(self, email: str) -> Optional[User]:
         """
         Get user by email.
@@ -78,7 +78,7 @@ class UserService(BaseService[User]):
         except Exception as e:
             print(f"Error getting user by email: {e}")
             return None
-    
+
     def update_user(
         self,
         user_id: uuid.UUID,
@@ -108,9 +108,9 @@ class UserService(BaseService[User]):
             update_data['full_name'] = full_name
         if phone_number is not None:
             update_data['phone_number'] = phone_number
-        
+
         return self.update(user_id, **update_data)
-    
+
     def set_preferences(
         self,
         user_id: uuid.UUID,
@@ -143,7 +143,7 @@ class UserService(BaseService[User]):
             existing_pref = self.db.query(UserPreference).filter(
                 UserPreference.user_id == user_id
             ).first()
-            
+
             if existing_pref:
                 # Update existing preferences
                 if budget_level is not None:
@@ -152,7 +152,7 @@ class UserService(BaseService[User]):
                     existing_pref.preferred_categories = preferred_categories
                 if travel_pace is not None:
                     existing_pref.travel_pace = travel_pace
-                
+
                 self.db.commit()
                 self.db.refresh(existing_pref)
                 return existing_pref
@@ -172,7 +172,7 @@ class UserService(BaseService[User]):
             self.db.rollback()
             print(f"Error setting preferences: {e}")
             return None
-    
+
     def get_preferences(self, user_id: uuid.UUID) -> Optional[UserPreference]:
         """
         Get user preferences.
@@ -195,7 +195,7 @@ class UserService(BaseService[User]):
         except Exception as e:
             print(f"Error getting preferences: {e}")
             return None
-    
+
     def get_user_with_preferences(self, user_id: uuid.UUID) -> Optional[dict]:
         """
         Get user with their preferences in one call.
@@ -214,14 +214,14 @@ class UserService(BaseService[User]):
         user = self.get_by_id(user_id)
         if not user:
             return None
-        
+
         preferences = self.get_preferences(user_id)
-        
+
         return {
             'user': user,
             'preferences': preferences
         }
-    
+
     def search_users(self, query: str, limit: int = 10) -> List[User]:
         """
         Search users by name or email.
@@ -244,3 +244,38 @@ class UserService(BaseService[User]):
         except Exception as e:
             print(f"Error searching users: {e}")
             return []
+
+
+    def get_user_with_history(self, user_id):
+        try:
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return None
+
+            # History: list of reviews with location details
+            reviews = (
+                self.db.query(Review)
+                .join(Location, Review.location_id == Location.id)
+                .filter(Review.user_id == user_id)
+                .all()
+            )
+
+            history = []
+            for r in reviews:
+                history.append({
+                    "location_id": str(r.location_id),
+                    "rating": r.rating,
+                    "categories": [str(c.category_id) for c in r.location.categories],
+                    "district": r.location.district,
+                    "price_level": r.location.price_level
+                })
+
+            return {
+                "id": str(user.id),
+                "email": user.email,
+                "history": history
+            }
+
+        except Exception as e:
+            print("Error in get_user_with_history:", e)
+            return None

@@ -15,12 +15,16 @@ from app.routers import (
     review_router,
     itinerary_router,
 )
+from app.routers.recommendation_routes import router as recommend_router
+
 
 app = FastAPI(
     title="SSS API",
     description="SightSeeing System - Smart Tourism API for Ho Chi Minh City",
     version="1.0.0",
 )
+
+app.include_router(recommend_router)
 
 # CORS middleware
 app.add_middleware(
