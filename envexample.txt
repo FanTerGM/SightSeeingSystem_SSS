@@ -1,6 +1,0 @@
-VIETMAP_API_KEY=your_key_here
-OPENWEATHER_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
-DATABASE_URL=postgresql://tourism_user:dev_password@postgres:5432/tourism_db
-REDIS_URL=redis://redis:6379
-NODE_ENV=development
