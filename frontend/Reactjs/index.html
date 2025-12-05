@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body style="position: fixed; width: 100%; height: 100%; overflow: hidden;">
 
     <div id="chat-widget">
         <div class="chat-header">
@@ -34,9 +34,12 @@
     </button>
 
     <div id="control-panel">
+        
         <div id="panel-header">
-            <h2><i class="fas fa-paper-plane"></i> Smart Travel</h2>
-            <p>Thiết kế lộ trình thông minh của bạn</p>
+            <div style="flex: 1;">
+                <h2><i class="fas fa-paper-plane"></i> Smart Travel</h2>
+                <p>Thiết kế lộ trình thông minh của bạn</p>
+            </div>
         </div>
 
         <div id="panel-content">
@@ -106,9 +109,9 @@
             </div>
 
             <div id="route-summary" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3 style="margin:0; font-size:1.1rem;">Lộ trình chi tiết</h3>
-                    <button id="reopen-suggestion-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.85rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:10px; border-bottom:1px solid #eee;">
+                    <h3 style="margin:0; font-size:1rem; font-weight:700;">Lộ trình chi tiết</h3>
+                    <button id="reopen-suggestion-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
                 </div>
 
                 <div id="route-steps-container"></div>
@@ -139,6 +142,14 @@
 
     <div id="big-map"></div>
 
+    <button id="mobile-map-toggle" title="Mở rộng bản đồ">
+        <i class="fas fa-expand-arrows-alt"></i>
+    </button>
+
+    <button id="floating-back-btn" title="Quay lại nhập liệu">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+
     <div id="details-panel">
         <div id="details-header">
             <h2>Thông tin địa điểm</h2>
@@ -148,8 +159,14 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-   <script type="module" src="./js/main.js"></script>
-
+    <script type="module" src="./js/main.js"></script>
+    <script src="https://unpkg.com/mobile-drag-drop/index.min.js"></script>
+    <script>
+        MobileDragDrop.polyfill({
+            holdToDrag: 300, 
+            dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+        });
+        window.addEventListener('touchmove', function() {}, {passive: false});
+    </script>
 </body>
 </html>
