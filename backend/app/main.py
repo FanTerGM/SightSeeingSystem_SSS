@@ -15,7 +15,8 @@ from app.routers import (
     review_router,
     itinerary_router,
 )
-from app.routers.recommendation_routes import router as recommend_router
+from app.routers.vietmap_routes import router as vietmap_router
+from app.routers.recommendation_vietmap_routes import router as recommend_vietmap_router
 
 
 app = FastAPI(
@@ -24,7 +25,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.include_router(recommend_router)
+app.include_router(vietmap_router)
+app.include_router(recommend_vietmap_router)
 
 # CORS middleware
 app.add_middleware(
