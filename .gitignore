@@ -20,6 +20,6 @@ logs/
 
 postgres_data/
 redis_data/
+__pycache__/
+*.pyc
 EOF
-
-backend/node_modules/
