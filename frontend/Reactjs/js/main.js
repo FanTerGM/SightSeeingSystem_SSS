@@ -1,6 +1,5 @@
 /**
- * MAIN CONTROLLER
- * "Bộ não" điều khiển toàn bộ ứng dụng.
+ * MAIN CONTROLLER - Đã gộp đầy đủ tính năng: Toggle Map & Floating Back Button
  */
 
 import { apiService } from './services/api.js';
@@ -9,113 +8,65 @@ import { UIModule } from './modules/ui.js';
 
 class AppController {
     constructor() {
-        // 1. Khởi tạo các Module con
         this.map = new MapModule('big-map');
         this.ui = new UIModule();
-
-        // 2. Quản lý State (Trạng thái dữ liệu)
         this.state = {
-            route: [],          // Danh sách các điểm đang có trong lộ trình (cột bên trái)
-            allSuggestions: [], // Danh sách tất cả gợi ý lấy từ API (cột bên phải)
+            route: [],          
+            allSuggestions: [], 
             isRouting: false 
         };
-
-        // 3. Chạy ứng dụng
         this.init();
     }
 
     async init() {
         console.log("🚀 App đang khởi động...");
-        
-        // Cài đặt lắng nghe sự kiện (Click, Submit, Drag...)
         this.setupEventListeners();
-        
-        // Tải dữ liệu ban đầu
         await this.loadInitialData();
     }
 
-    // --- A. DATA & API ---
-
     async loadInitialData() {
         try {
-            // Gọi API lấy danh sách gợi ý gốc
             this.state.allSuggestions = await apiService.getSuggestions();
-            
-            // Cập nhật giao diện (Có lọc những điểm đã chọn)
             this.updateSuggestionUI();
         } catch (error) {
             console.error("Lỗi tải data:", error);
         }
     }
 
-    /**
-     * HÀM MỚI: Cập nhật danh sách gợi ý
-     * Tự động ẩn những điểm đã có trong lộ trình (this.state.route)
-     */
     updateSuggestionUI() {
-        // 1. Lấy danh sách ID của các điểm đang nằm trong lộ trình
         const currentRouteIds = this.state.route.map(item => item.id);
-        
-        // 2. Gọi UI để render, truyền vào danh sách 'đen' (cần ẩn đi)
         this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
     }
 
-    // --- B. QUẢN LÝ LỘ TRÌNH (CORE LOGIC) ---
-
-    /**
-     * Thêm một địa điểm vào lộ trình
-     */
+    // --- QUẢN LÝ LỘ TRÌNH ---
     addLocationToRoute(locationData, shouldRefreshMap = true) {
-        // Kiểm tra xem điểm này đã có trong lộ trình chưa
         const exists = this.state.route.find(i => i.id === locationData.id);
-        if (exists) return; // Nếu có rồi thì thôi, không thêm nữa
+        if (exists) return; 
 
-        // 1. Cập nhật State: Thêm vào mảng route
         this.state.route.push(locationData);
-
-        // 2. Cập nhật UI: Thêm thẻ vào cột bên trái
         this.ui.addStepItem(locationData, (deletedItem) => {
-            this.removeLocation(deletedItem); // Callback khi bấm nút xóa
+            this.removeLocation(deletedItem); 
         });
-
-        // 3. QUAN TRỌNG: Cập nhật lại danh sách gợi ý để ẩn điểm vừa chọn đi
         this.updateSuggestionUI();
-
-        // 4. Vẽ lại bản đồ
         if (shouldRefreshMap) {
             this.refreshMapState();
         }
     }
 
-    /**
-     * Xóa địa điểm khỏi lộ trình
-     */
     removeLocation(locationData) {
-        // 1. Lọc bỏ item khỏi mảng state
         this.state.route = this.state.route.filter(item => item.id !== locationData.id);
-        
-        // 2. QUAN TRỌNG: Cập nhật lại danh sách gợi ý để hiện lại điểm vừa xóa
         this.updateSuggestionUI();
-        
-        // 3. Vẽ lại bản đồ sau khi xóa
         this.refreshMapState();
     }
 
-    /**
-     * Vẽ lại Marker và Đường đi
-     */
     async refreshMapState() {
         const updateBtn = document.getElementById('update-map-btn');
         if (updateBtn) this.ui.setLoading(updateBtn, true);
 
         try {
-            // 1. Vẽ các điểm Marker
             this.map.drawMarkers(this.state.route);
-
-            // 2. Nếu có >= 2 điểm thì vẽ đường nối
             if (this.state.route.length >= 2) {
                 const routeResult = await apiService.calculateRoute(this.state.route);
-                
                 if (routeResult && routeResult.path) {
                     this.map.drawPolyline(routeResult.path);
                 }
@@ -127,8 +78,7 @@ class AppController {
         }
     }
 
-    // --- C. XỬ LÝ SỰ KIỆN (EVENT HANDLERS) ---
-
+    // --- XỬ LÝ SỰ KIỆN (ĐÃ GỘP TẤT CẢ VÀO ĐÂY) ---
     setupEventListeners() {
         // 1. Form Submit
         const form = document.getElementById('route-form');
@@ -139,45 +89,71 @@ class AppController {
         // 2. Drag & Drop
         this.setupDragAndDrop();
 
-        // 3. Nút "Chỉnh sửa lại"
-        document.getElementById('edit-route-btn').onclick = () => {
-            this.ui.navigateTo('builder');
-            this.map.clearRoute(); 
-            this.state.route = []; // Xóa hết lộ trình làm lại từ đầu
-            document.getElementById('route-steps-container').innerHTML = '';
-            
-            // Hiện lại tất cả gợi ý vì lộ trình đã trống
-            this.updateSuggestionUI();
-        };
+        // 3. Nút "Chỉnh sửa lại" (Nút cũ ở dưới đáy - Dành cho PC)
+        const editBtn = document.getElementById('edit-route-btn');
+        if(editBtn) {
+            editBtn.onclick = () => {
+                this.ui.navigateTo('builder');
+                this.map.clearRoute(); 
+                this.state.route = []; 
+                document.getElementById('route-steps-container').innerHTML = '';
+                this.updateSuggestionUI();
+            };
+        }
 
-        // 4. Nút cập nhật bản đồ
-        document.getElementById('update-map-btn').onclick = () => this.refreshMapState();
+        // --- 4. NÚT QUAY LẠI NỔI (FLOATING BACK BUTTON) ---
+        // Nút tròn góc trái dưới trên mobile
+        const floatingBackBtn = document.getElementById('floating-back-btn');
+        if (floatingBackBtn) {
+            floatingBackBtn.onclick = () => {
+                // Quay về màn hình nhập liệu
+                this.ui.navigateTo('builder');
+                
+                // (Tùy chọn) Reset lại trạng thái map full nếu đang bật
+                if (document.body.classList.contains('full-map')) {
+                    document.getElementById('mobile-map-toggle').click();
+                }
+            };
+        }
 
-        // 5. Các nút đóng/mở Panel
+        // 5. Nút Toggle Map (Mũi tên mở rộng bản đồ - Góc phải dưới)
+        const toggleBtn = document.getElementById('mobile-map-toggle');
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                document.body.classList.toggle('full-map');
+                const isFull = document.body.classList.contains('full-map');
+                toggleBtn.innerHTML = isFull 
+                    ? '<i class="fas fa-compress-arrows-alt"></i>'  
+                    : '<i class="fas fa-expand-arrows-alt"></i>';   
+                setTimeout(() => { this.map.map.invalidateSize(); }, 350); 
+            };
+        }
+        
+        // 6. Cập nhật map khi resize (quan trọng cho mobile transition)
+        const observer = new MutationObserver(() => {
+             setTimeout(() => { this.map.map.invalidateSize(); }, 350);
+        });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+        // 7. Các nút chức năng khác (Giữ nguyên)
+        const updateBtn = document.getElementById('update-map-btn');
+        if (updateBtn) updateBtn.onclick = () => this.refreshMapState();
+        
         this.setupPanelControls();
-
-        // 6. Chatbot
         this.setupChat();
-
-        // 7. Sự kiện từ Popup bản đồ
+        
         window.addEventListener('chat-request', (e) => {
             this.openChatContext(e.detail);
         });
 
-        // 8. TÌM KIẾM (REAL-TIME SEARCH)
         const searchInput = document.querySelector('.search-box-wrapper input');
         if (searchInput) {
             let timeout = null;
             searchInput.addEventListener('input', (e) => {
-                // Debounce: Chờ người dùng ngừng gõ 0.5s mới tìm
                 clearTimeout(timeout);
                 timeout = setTimeout(async () => {
                     const keyword = e.target.value;
-                    
-                    // Gọi API lấy danh sách mới theo từ khóa
                     this.state.allSuggestions = await apiService.getSuggestions(keyword);
-                    
-                    // Render lại (tự động trừ các điểm đang chọn trong lộ trình)
                     this.updateSuggestionUI();
                 }, 500); 
             });
@@ -200,11 +176,9 @@ class AppController {
                 apiService.getLocationDetails(endName)
             ]);
 
-            // Reset lộ trình cũ
             this.state.route = [];
             document.getElementById('route-steps-container').innerHTML = '';
 
-            // Thêm 2 điểm mới vào
             this.addLocationToRoute(startData, false);
             this.addLocationToRoute(endData, false);
 
@@ -222,6 +196,7 @@ class AppController {
 
     setupDragAndDrop() {
         const dropZone = document.getElementById('route-steps-container');
+        if(!dropZone) return;
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -235,7 +210,6 @@ class AppController {
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('drag-over');
-
             const rawData = e.dataTransfer.getData('application/json');
             if (rawData) {
                 const data = JSON.parse(rawData);
@@ -270,10 +244,8 @@ class AppController {
         const sendMessage = () => {
             const txt = input.value.trim();
             if (!txt) return;
-
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
-
             this.ui.showTypingIndicator(true);
             setTimeout(() => {
                 this.ui.showTypingIndicator(false);
@@ -293,6 +265,5 @@ class AppController {
     }
 }
 
-// Khởi chạy App
 const app = new AppController();
 window.App = app;
