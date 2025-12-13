@@ -129,7 +129,7 @@ http://localhost:8000/api
 
 ## Endpoint
 
-**POST** `/recommend`
+**POST** `/recommend/route-aware`
 
 ### Input
 
@@ -150,27 +150,24 @@ http://localhost:8000/api
 
 ```json
 {
-  "user_id": "uuid",
-  "start_point": {"lat": 10.77, "lng": 106.69},
-  "total_locations": 10,
-  "recommendations": [
-    {
-      "location": {
-        "id": "uuid",
-        "name": "War Remnants Museum",
-        "district": "District 3"
-      },
-      "score": 0.81,
-      "breakdown": {
-        "distance": 0.89,
-        "rating": 0.94,
-        "category": 0.5,
-        "popularity": 1.0,
-        "history": 0.7
-      }
-    }
-  ]
-}
+    "count": 3,
+    "recommendations": [
+        {
+            "location_id": "bb763eb0-010a-4e3c-ba32-c3503a42c973",
+            "name_vi": "Bảo tàng Chứng tích chiến tranh",
+            "district": "District 3",
+            "distance_km": 1.0318093813743718,
+            "coordinates": {
+                "lat": 10.779,
+                "lng": 106.6923
+            },
+            "categories": [
+                "Historical",
+                "Entertainment"
+            ],
+            "score": 0.8188866716518969
+        },
+        ...
 ```
 
 ---
@@ -220,21 +217,21 @@ Suggests places as user types.
 
 ---
 
-## ✔ 7.3 Distance Matrix API
+## ✔ 7.3 Routing API
 
-Used to calculate travel time & distance between multiple locations — useful for route optimization.
+Used to calculate travel path.
 
-**POST** `/vietmap/distance-matrix`
+**POST** `/vietmap/route`
 
 ### Request
 
 ```json
 {
-  "origins": [ { "lat": 10.77, "lng": 106.69 } ],
-  "destinations": [
-    { "lat": 10.78, "lng": 106.70 },
-    { "lat": 10.79, "lng": 106.72 }
-  ]
+  "start_lat": 10.77,
+  "start_lng": 106.69,
+  "end_lat": 10.79,
+  "end_lng": 106.72,
+  "vehicle": "car"
 }
 ```
 
@@ -245,6 +242,55 @@ Used to calculate travel time & distance between multiple locations — useful f
   { "distance": 1200, "duration": 260 },
   { "distance": 2400, "duration": 520 }
 ]
+```
+
+---
+# 🤖 8. New AI APIs
+## Chatbot reccomendation (Smart Chat)
+AI automatically understands user location (via text) and suggests places.
+
+**POST** `/ai/recommend-chat`
+
+### Input
+
+```json
+{
+  "user_id": "user-uuid",
+  "message": "Tôi đang ở Chợ Bến Thành, tìm quán ăn ngon bổ rẻ quanh đây"
+}
+```
+Logic Flow
+
+1. AI extracts intent & location ("Ben Thanh Market").
+2. Backend calls VietMap to get coordinates.
+3. Backend searches DB for nearby places matching "cheap" budget.
+4. AI synthesizes results into a natural conversation.
+
+### Output
+```json
+{
+    "reply": "Chào bạn! Từ Chợ Bến Thành, bạn có thể tản bộ đến khu vực Takashimaya, hoặc Bưu Điện Thành Phố và Nhà thờ Đức Bà. Xung quanh đó có rất nhiều lựa chọn ẩm thực phong phú và đa dạng để bạn khám phá.",
+    "selected_locations": [
+        {
+            "id": "c9a96206-df10-43c0-8c82-baff6887a641",
+            "name": "Takashimaya",
+            "district": "District 1",
+            "score": 0.7449176688438375
+        },
+        {
+            "id": "a0ec37f3-e5f6-45e1-a5ad-d1f91beab075",
+            "name": "Bưu Điện Thành Phố",
+            "district": "District 1",
+            "score": 0.7284865287153277
+        },
+        {
+            "id": "6ab6e7a1-6447-4ab2-8293-e0f677d94137",
+            "name": "Nhà thờ Đức Bà",
+            "district": "District 1",
+            "score": 0.7264759489655814
+        }
+    ]
+}
 ```
 
 ---
@@ -277,7 +323,7 @@ async function apiPost(path, body) {
 
 /* ---------------- USERS ---------------- */
 export function createUser(data) {
-    return apiPost("/users", data);
+    return apiPost("/users/", data);
 }
 
 export function getUser(id) {
@@ -286,28 +332,33 @@ export function getUser(id) {
 
 /* ---------------- LOCATIONS ---------------- */
 export function getLocations() {
-    return apiGet("/locations");
+    return apiGet("/locations/");
 }
 
-/* ---------------- CATEGORIES ---------------- */
-export function getCategories() {
-    return apiGet("/categories");
-}
-
-/* ---------------- REVIEWS ---------------- */
-export function createReview(data) {
-    return apiPost("/reviews", data);
-}
-
-/* ---------------- RECOMMENDATIONS ---------------- */
+/* ---------------- AI & RECOMMENDATIONS ---------------- */
 export function getRecommendations(payload) {
-    return apiPost("/recommend", payload);
+    return apiPost("/recommend/route-aware", payload);
+}
+
+export function chatRecommend(payload) {
+    return apiPost("/ai/recommend-chat", payload);
 }
 
 /* ---------------- VIETMAP ---------------- */
 export function vietmapAutocomplete(q) {
     return apiGet(`/vietmap/autocomplete?q=${encodeURIComponent(q)}`);
 }
+
+export function vietmapRoute(start, end) {
+    return apiPost("/vietmap/route", {
+        start_lat: start.lat,
+        start_lng: start.lng,
+        end_lat: end.lat,
+        end_lng: end.lng,
+        vehicle: "car"
+    });
+}
+
 
 export function vietmapRoute(start, end) {
     return apiPost("/vietmap/route", {
@@ -328,7 +379,7 @@ import { getRecommendations } from "./api.js";
 
 async function loadRecommendations() {
     const payload = {
-        user_id: "2bc36657-d8b8-4aa2-9818-cd833bde9a09",
+        user_id: "your-user-uuid-here",
         start_point: { lat: 10.77, lng: 106.69 },
         end_point: { lat: 10.78, lng: 106.70 },
         preferences: {
@@ -354,3 +405,4 @@ This backend supports:
 * Saving itineraries
 * AI-like recommendations
 * VietMap map/geocode/route integration
+* (NEW) Chatbot response generation

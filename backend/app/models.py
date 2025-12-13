@@ -37,38 +37,40 @@ class Category(Base):
 
 class Location(Base):
     __tablename__ = "locations"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     name_vi = Column(String(255), nullable=False)
     description = Column(Text)
     address = Column(Text, nullable=False)
     district = Column(String(100))
-    
+
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
-    
+
     phone_number = Column(String(20))
     website = Column(Text)
     price_level = Column(String(10))
     average_visit_duration = Column(Integer)
-    
+
     rating = Column(Float)
     review_count = Column(Integer, default=0)
-    
+
     opening_hours = Column(JSONB)
     closing_hours = Column(JSONB)
-    
+
     is_active = Column(Boolean, default=True)
-    
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     __table_args__ = (
-        CheckConstraint("price_level IN ('free', '₫', '₫₫', '₫₫₫')", name='check_price_level'),
-        CheckConstraint("rating >= 0 AND rating <= 5", name='check_rating'),
+        CheckConstraint(
+            "price_level IN ('low', 'medium', 'high')", name="check_price_level"
+        ),
+        CheckConstraint("rating >= 0 AND rating <= 5", name="check_rating"),
     )
-    
+
     # Relationships
     categories = relationship("LocationCategory", back_populates="location")
     reviews = relationship("Review", back_populates="location")

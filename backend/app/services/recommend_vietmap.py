@@ -7,15 +7,19 @@ def normalize_point(p):
     return {"lat": p["lat"], "lng": p["lng"]}
 
 
-def get_route_distance_km(start, end):
+async def get_route_distance_km(start, end):
     """Use VietMap Route API for real-world travel distance."""
     try:
-        res = VietMapService.route(
+        res = await VietMapService.route(
             start=(start["lat"], start["lng"]),
             end=(end["lat"], end["lng"]),
             vehicle="car",
         )
         dist = res.get("distance_m")
+
+        if "paths" in res and len(res["paths"]) > 0:
+            dist = res["paths"][0]["distance"]
+
         if dist:
             return dist / 1000.0
     except:
@@ -34,16 +38,7 @@ def haversine(a, b):
     return 2 * R * atan2(sqrt(h), sqrt(1 - h))
 
 
-def calculate_weighted_score(location, start_point, preferences, user_history):
-    dst_km = get_route_distance_km(
-        start_point, {"lat": location.latitude, "lng": location.longitude}
-    )
-
-    if not dst_km:
-        dst_km = haversine(
-            start_point, {"lat": location.latitude, "lng": location.longitude}
-        )
-
+def calculate_weighted_score(location, dst_km, preferences, user_history):
     distance_score = max(0, 1 - dst_km / 10)
 
     rating_score = (location.rating or 0) / 5
@@ -81,7 +76,7 @@ def calculate_weighted_score(location, start_point, preferences, user_history):
     }
 
 
-def generate_recommendations_vietmap(user, locations, payload, user_prefs, max_stops=3):
+async def generate_recommendations_vietmap(user, locations, payload, user_prefs, max_stops=1):
 
     start_point = normalize_point(payload["start_point"])
     user_history = user.get("history", [])
@@ -89,9 +84,18 @@ def generate_recommendations_vietmap(user, locations, payload, user_prefs, max_s
     recs = []
 
     for loc in locations:
+        dst_km = await get_route_distance_km(
+            start_point, {"lat": loc.latitude, "lng": loc.longitude}
+        )
+
+        if not dst_km:
+            dst_km = haversine(
+                start_point, {"lat": loc.latitude, "lng": loc.longitude}
+        )
+
         score = calculate_weighted_score(
             location=loc,
-            start_point=start_point,
+            dst_km=dst_km,
             preferences=user_prefs,
             user_history=user_history,
         )
@@ -99,13 +103,14 @@ def generate_recommendations_vietmap(user, locations, payload, user_prefs, max_s
         recs.append(
             {
                 "location_id": str(loc.id),
-                "name": loc.name,
                 "name_vi": loc.name_vi,
                 "district": loc.district,
+                "distance_km": dst_km,
                 "coordinates": {"lat": loc.latitude, "lng": loc.longitude},
-                "categories": [c.category.name for c in loc.categories],
+                "categories": (
+                    [c.category.name for c in loc.categories] if loc.categories else []
+                ),
                 "score": score["total"],
-                "breakdown": score["details"],
             }
         )
 
