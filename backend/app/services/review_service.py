@@ -10,7 +10,7 @@ from sqlalchemy import func
 from datetime import date
 import uuid
 
-from models import Review, Location, User
+from app.models import Review, Location, User
 from .base_service import BaseService
 
 

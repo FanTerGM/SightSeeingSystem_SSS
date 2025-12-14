@@ -10,7 +10,7 @@ from sqlalchemy import func, and_, or_
 import uuid
 import math
 
-from models import Location, LocationCategory, Category, Review
+from app.models import Location, LocationCategory, Category, Review
 from .base_service import BaseService
 
 
