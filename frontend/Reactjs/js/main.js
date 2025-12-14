@@ -26,7 +26,8 @@ class AppController {
 
     async loadInitialData() {
         try {
-            this.state.allSuggestions = await apiService.getSuggestions();
+            // Tải dữ liệu gợi ý ban đầu (ví dụ: tất cả locations)
+            this.state.allSuggestions = await apiService.getSuggestions(); 
             this.updateSuggestionUI();
         } catch (error) {
             console.error("Lỗi tải data:", error);
@@ -38,7 +39,7 @@ class AppController {
         this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
     }
 
-    // --- QUẢN LÝ LỘ TRÌNH ---
+    // --- QUẢN LÝ LỘ TRÌNH (Giữ nguyên) ---
     addLocationToRoute(locationData, shouldRefreshMap = true) {
         const exists = this.state.route.find(i => i.id === locationData.id);
         if (exists) return; 
@@ -78,7 +79,7 @@ class AppController {
         }
     }
 
-    // --- XỬ LÝ SỰ KIỆN (ĐÃ GỘP TẤT CẢ VÀO ĐÂY) ---
+    // --- XỬ LÝ SỰ KIỆN (Giữ nguyên phần lớn) ---
     setupEventListeners() {
         // 1. Form Submit
         const form = document.getElementById('route-form');
@@ -102,14 +103,11 @@ class AppController {
         }
 
         // --- 4. NÚT QUAY LẠI NỔI (FLOATING BACK BUTTON) ---
-        // Nút tròn góc trái dưới trên mobile
         const floatingBackBtn = document.getElementById('floating-back-btn');
         if (floatingBackBtn) {
             floatingBackBtn.onclick = () => {
-                // Quay về màn hình nhập liệu
                 this.ui.navigateTo('builder');
                 
-                // (Tùy chọn) Reset lại trạng thái map full nếu đang bật
                 if (document.body.classList.contains('full-map')) {
                     document.getElementById('mobile-map-toggle').click();
                 }
@@ -140,7 +138,7 @@ class AppController {
         if (updateBtn) updateBtn.onclick = () => this.refreshMapState();
         
         this.setupPanelControls();
-        this.setupChat();
+        this.setupChat(); // <-- Đã được sửa logic
         
         window.addEventListener('chat-request', (e) => {
             this.openChatContext(e.detail);
@@ -229,6 +227,7 @@ class AppController {
             document.getElementById('details-panel').style.display = 'none';
     }
 
+    // --- LOGIC CHAT MỚI ---
     setupChat() {
         const floatBtn = document.getElementById('floating-chat-btn');
         const sendBtn = document.getElementById('send-msg-btn');
@@ -241,16 +240,49 @@ class AppController {
             floatBtn.querySelector('.fa-times').style.display = isOpen ? 'block' : 'none';
         };
 
-        const sendMessage = () => {
+        const sendMessage = async () => {
             const txt = input.value.trim();
             if (!txt) return;
+            
+            // 1. Thêm tin nhắn của user
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
             this.ui.showTypingIndicator(true);
-            setTimeout(() => {
+
+            try {
+                // 2. Gọi API Chatbot mới
+                const chatResult = await apiService.chatRecommend(txt);
+                
+                // 3. Hiển thị phản hồi từ AI
+                this.ui.addChatMessage(chatResult.reply, 'ai');
+                
+                // 4. Nếu AI có gợi ý địa điểm, cập nhật danh sách gợi ý
+                if (chatResult.selected_locations && chatResult.selected_locations.length > 0) {
+                    // Cập nhật state với gợi ý mới và refresh UI
+                    this.state.allSuggestions = chatResult.selected_locations; 
+                    this.updateSuggestionUI();
+                    
+                    // Thêm thông báo nhẹ cho user biết
+                    this.ui.addChatMessage(`
+                        <span style="font-size:0.85rem; color:#137333;">
+                        <i class="fas fa-check-circle"></i> Tôi đã cập nhật 
+                        <strong>${chatResult.selected_locations.length}</strong> gợi ý 
+                        mới vào Panel bên phải.
+                        </span>
+                    `, 'ai');
+                }
+                
+            } catch (error) {
+                this.ui.addChatMessage("Đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.", 'ai');
+                console.error("Chatbot Error:", error);
+            } finally {
                 this.ui.showTypingIndicator(false);
-                this.ui.addChatMessage(`Tôi đã nhận được yêu cầu: "${txt}".`, 'ai');
-            }, 1000);
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
         };
 
         sendBtn.onclick = sendMessage;
@@ -261,7 +293,10 @@ class AppController {
         if (!document.body.classList.contains('chat-open')) {
             document.getElementById('floating-chat-btn').click();
         }
-        this.ui.addChatMessage(`Bạn muốn biết thêm thông tin gì về <strong>${contextName}</strong>?`, 'ai');
+        // Gửi tin nhắn tự động vào chat
+        document.getElementById('chat-input').value = `Gợi ý các địa điểm tương tự như ${contextName}`;
+        // (Tùy chọn: Gọi sendMessage() tự động hoặc chờ user nhấn Enter)
+        // document.getElementById('send-msg-btn').click();
     }
 }
 
