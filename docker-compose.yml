@@ -3,10 +3,8 @@ services:
   backend:
     build: ./backend
     # Maps localhost:8000 to container:8000 (FastAPI)
-    # Maps localhost:3001 to container:3000 (Node AI service, avoiding conflict with frontend)
     ports:
       - "8000:8000"
-      - "3001:3000"
     environment:
       # We use the service name 'postgres' as the hostname
       - DATABASE_URL=postgresql://tourism_user:dev_password@postgres:5432/tourism_db
