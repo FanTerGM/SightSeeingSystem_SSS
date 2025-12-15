@@ -1,12 +1,10 @@
-# 1. Use Nginx (Alpine version is very small and fast)
 FROM nginx:alpine
 
-# 2. Copy your frontend files to the default Nginx public folder
-#    This takes everything in your 'Reactjs' folder and puts it where Nginx looks for files
-COPY . /usr/share/nginx/html
+RUN rm -rf /usr/share/nginx/html/*
+COPY ./Reactjs/ /usr/share/nginx/html/
 
-# 3. Expose port 80 (standard web traffic port)
+# entrypoint script (must be executable)
+COPY ./99-env.sh /docker-entrypoint.d/99-env.sh
+RUN chmod +x /docker-entrypoint.d/99-env.sh
 EXPOSE 80
-
-# 4. Start Nginx when the container runs
 CMD ["nginx", "-g", "daemon off;"]

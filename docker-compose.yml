@@ -19,14 +19,12 @@ services:
       - ./backend:/code
 
   frontend:
-    # UPDATED: Matches your actual folder name 'Reactjs'
-    build: ./Reactjs
-    # Maps localhost:3000 to Nginx port 80 inside the container
+    build: ./frontend
+    
     ports:
       - "3000:80"
-    volumes:
-      - ./Reactjs:/usr/share/nginx/html
-
+    env_file:
+    - .env
   postgres:
     image: postgres:15
     environment:

@@ -247,11 +247,14 @@ class ApiService {
             
             const routeResult = await this._apiPost("/vietmap/route", payload); 
 
+            const p0 = routeResult?.paths?.[0];
+
             return {
                 success: true,
-                distance: routeResult[0]?.distance || 'N/A', 
-                duration: routeResult[0]?.duration || 'N/A',
-                path: routeResult.path || [] 
+                distance: p0?.distance ?? 'N/A',
+                duration: p0?.time ?? 'N/A',
+                // You must decode polyline if you want an array of coordinates
+                path: p0?.points ?? ""
             };
 
         } catch (error) {
