@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 
-// --- MOCK DATA (Dữ liệu mẫu để test nhanh) ---
+// --- MOCK DATA (Giữ nguyên) ---
 const MOCK_DB = [
     { 
         id: 1, 
@@ -62,8 +62,8 @@ const MOCK_DB = [
         img: 'https://via.placeholder.com/150/264653/FFFFFF?text=L81', 
         desc: 'Tòa nhà cao nhất Việt Nam, đài quan sát view toàn cảnh thành phố.' 
     }
-    // ... Bạn có thể giữ thêm các data mẫu khác ở đây
 ];
+
 class ApiService {
     constructor() {
         this.baseUrl = CONFIG.API_BASE_URL; 
@@ -76,23 +76,69 @@ class ApiService {
     _mockDelay(data) {
         return new Promise(resolve => setTimeout(() => resolve(data), CONFIG.MOCK_DELAY));
     }
+    
+    /**
+     * Helper POST request (Đã thêm Auth Header)
+     */
+    async _apiPost(path, body) {
+        const url = `${this.baseUrl}${path}`;
+        const headers = { 
+            "Content-Type": "application/json"
+        };
+        
+        // Thêm Token xác thực nếu có
+        if (CONFIG.AUTH_TOKEN) {
+            headers["Authorization"] = `Bearer ${CONFIG.AUTH_TOKEN}`; 
+        }
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        return await response.json();
+    }
+    
+    /**
+     * Helper GET request (Đã thêm Auth Header)
+     */
+    async _apiGet(path) {
+        const url = `${this.baseUrl}${path}`;
+        const headers = {};
+        
+        // Thêm Token xác thực nếu có
+        if (CONFIG.AUTH_TOKEN) {
+            headers["Authorization"] = `Bearer ${CONFIG.AUTH_TOKEN}`; 
+        }
+
+        const response = await fetch(url, { headers });
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        return await response.json();
+    }
+
 
     // --- ADAPTER: CẦU NỐI GIỮA BACKEND VÀ FRONTEND ---
     _mapApiToApp(item) {
-        const displayName = item.name || (item.display_name ? item.display_name.split(',')[0] : 'Địa điểm chưa đặt tên');
+        // Cố gắng lấy tên tiếng Việt nếu có (từ Recommendation API)
+        const displayName = item.name_vi || item.name || (item.display_name ? item.display_name.split(',')[0] : 'Địa điểm chưa đặt tên');
+        
+        // Lấy tọa độ
+        const lat = item.coordinates ? item.coordinates.lat : item.lat;
+        const lng = item.coordinates ? item.coordinates.lng : item.lon || item.lng;
         
         return {
-            id: item.place_id || item.id || Date.now(),
+            id: item.location_id || item.place_id || item.id || Date.now() + Math.random(), 
             name: displayName,
-            type: item.type || 'Địa điểm', 
-            address: item.display_name || item.address || 'Đang cập nhật địa chỉ',
+            type: (item.categories && item.categories.length > 0) ? item.categories[0] : 'Địa điểm', // Lấy category đầu tiên
+            address: item.address || item.district || 'Đang cập nhật địa chỉ',
             price: item.price || '---', 
             status: item.status || 'Mở cửa',
             isOpen: true,
-            lat: parseFloat(item.lat),
-            lng: parseFloat(item.lon || item.lng), 
+            lat: parseFloat(lat),
+            lng: parseFloat(lng), 
             temp: '30°C', 
-            weatherIcon: 'fa-sun',
+            weatherIcon: 'fa-sun', 
             img: item.img || this._getPlaceImage(displayName, item.type),
             desc: item.description || item.display_name || 'Chưa có mô tả chi tiết.'
         };
@@ -106,9 +152,8 @@ class ApiService {
         return 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=300&q=80'; 
     }
 
-    // --- API 1: TÌM KIẾM ---
+    // --- API 1: TÌM KIẾM (Sử dụng VietMap Search API) ---
     async getSuggestions(keyword = '') {
-        // 1. Chế độ Mock (Nên bật chế độ này trong config.js lúc này)
         if (this.useMock) {
             const results = keyword 
                 ? MOCK_DB.filter(item => item.name.toLowerCase().includes(keyword.toLowerCase()))
@@ -116,36 +161,25 @@ class ApiService {
             return this._mockDelay(results);
         }
 
-        // 2. Chế độ thật (Backend của bạn)
         try {
-            console.log(`[API] Calling Backend: "${keyword}"`);
+            console.log(`[API] Calling VietMap Search: "${keyword}"`);
+            const path = `/vietmap/search?query=${encodeURIComponent(keyword)}`; 
+            const data = await this._apiGet(path);
             
-            // --- CHỖ NÀY ĐỂ BACKEND DEV ĐIỀN CODE VÀO ---
-            /*
-            const url = `${this.baseUrl}/locations?q=${encodeURIComponent(keyword)}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('API Error');
-            const data = await response.json();
             return data.map(item => this._mapApiToApp(item));
-            */
-
-            // Tạm thời trả về rỗng nếu chưa nối API
-            console.warn("Chưa kết nối Backend thật!");
-            return [];
 
         } catch (error) {
             console.error("Lỗi getSuggestions:", error);
-            return [];
+            return MOCK_DB; 
         }
     }
 
-    // --- API 2: CHI TIẾT ---
+    // --- API 2: CHI TIẾT (Sử dụng VietMap Search API làm proxy) ---
     async getLocationDetails(name) {
         if (this.useMock) {
             const found = MOCK_DB.find(d => d.name === name);
             if (found) return this._mockDelay(found);
             
-            // Mock Fallback
             return this._mockDelay(this._mapApiToApp({
                 name: name,
                 display_name: 'Địa điểm Mock ngẫu nhiên',
@@ -154,59 +188,111 @@ class ApiService {
             }));
         }
 
-        // --- CHỖ NÀY ĐỂ BACKEND DEV ĐIỀN CODE VÀO ---
-        /*
         try {
-            const res = await fetch(`${this.baseUrl}/locations/details?name=${encodeURIComponent(name)}`);
-            const data = await res.json();
-            return this._mapApiToApp(data);
-        } catch (e) { console.error(e); }
-        */
-
-        console.warn("Chưa kết nối Backend thật!");
+            const path = `/vietmap/search?query=${encodeURIComponent(name)}`; 
+            const data = await this._apiGet(path);
+            
+            if (data && data.length > 0) {
+                return this._mapApiToApp(data[0]);
+            }
+        } catch (e) {
+            console.error("Lỗi getLocationDetails:", e);
+        }
+        
         return this._mapApiToApp({
             name: name,
-            display_name: 'Không tìm thấy (Backend chưa sẵn sàng)',
+            display_name: 'Không tìm thấy địa điểm (API Search không trả về kết quả)',
             lat: 10.7769,
             lon: 106.7009
         });
     }
 
-    // --- API 3: TÍNH LỘ TRÌNH ---
+    // --- API 3: TÍNH LỘ TRÌNH (Sử dụng VietMap Route API) ---
    async calculateRoute(routeList) {
         console.log(`[Route] Tính đường qua ${routeList.length} điểm.`);
 
         if (!routeList || routeList.length < 2) return null;
 
-        // --- LOGIC MỚI: NỐI TỪNG ĐIỂM MỘT ---
-        const path = [];
-
-        for (let i = 0; i < routeList.length - 1; i++) {
-            const current = routeList[i];
-            const next = routeList[i+1];
-
-            // 1. Thêm điểm hiện tại vào đường đi
-            path.push([current.lat, current.lng]);
-
-            // 2. Tạo điểm trung gian giả lập (để đường trông mềm mại hơn, không thẳng đuột)
-            // (Lấy trung điểm giữa 2 vị trí)
-            const midLat = (current.lat + next.lat) / 2;
-            const midLng = (current.lng + next.lng) / 2;
-            
-            // Thêm chút nhiễu nhẹ để đường cong (tùy chọn)
-            path.push([midLat + 0.0002, midLng - 0.0002]); 
+        if (this.useMock) {
+            const path = [];
+            for (let i = 0; i < routeList.length - 1; i++) {
+                const current = routeList[i];
+                const next = routeList[i+1];
+                path.push([current.lat, current.lng]);
+                const midLat = (current.lat + next.lat) / 2;
+                const midLng = (current.lng + next.lng) / 2;
+                path.push([midLat + 0.0002, midLng - 0.0002]); 
+            }
+            const last = routeList[routeList.length - 1];
+            path.push([last.lat, last.lng]);
+            return this._mockDelay({
+                success: true,
+                distance: 'Đang cập nhật...',
+                duration: '---',
+                path: path
+            });
         }
+        
+        try {
+            const start = routeList[0];
+            const end = routeList[routeList.length - 1];
+            
+            const payload = {
+                start_lat: start.lat,
+                start_lng: start.lng,
+                end_lat: end.lat,
+                end_lng: end.lng,
+                vehicle: "car"
+            };
+            
+            const routeResult = await this._apiPost("/vietmap/route", payload); 
 
-        // 3. Thêm điểm cuối cùng
-        const last = routeList[routeList.length - 1];
-        path.push([last.lat, last.lng]);
+            return {
+                success: true,
+                distance: routeResult[0]?.distance || 'N/A', 
+                duration: routeResult[0]?.duration || 'N/A',
+                path: routeResult.path || [] 
+            };
 
-        return this._mockDelay({
-            success: true,
-            distance: 'Đang cập nhật...',
-            duration: '---',
-            path: path
-        });
+        } catch (error) {
+            console.error("Lỗi calculateRoute:", error);
+            return null;
+        }
+    }
+    
+    // --- API 4: CHATBOT RECOMMENDATION (Mới) ---
+    async chatRecommend(message) {
+        console.log(`[AI Chat] Request: "${message}"`);
+        
+        if (this.useMock) {
+            return this._mockDelay({
+                reply: `Tôi đang ở chế độ Mock. Tôi đã nhận được yêu cầu: "${message}".`,
+                selected_locations: MOCK_DB.slice(0, 2) 
+            });
+        }
+        
+        try {
+            const payload = {
+                user_id: 'guest-user-123', 
+                message: message
+            };
+            
+            const result = await this._apiPost("/ai/recommend-chat", payload);
+            
+            const locations = result.selected_locations.map(item => this._mapApiToApp(item));
+            
+            return {
+                reply: result.reply,
+                selected_locations: locations
+            };
+            
+        } catch (error) {
+            console.error("Lỗi chatRecommend:", error);
+            return { 
+                reply: "Xin lỗi, tôi không thể kết nối đến Trợ lý AI lúc này.", 
+                selected_locations: [] 
+            };
+        }
     }
 }
 

@@ -1,35 +1,32 @@
 /**
  * CONFIGURATION FILE
- * Lưu trữ các biến môi trường, cài đặt mặc định và cấu hình API.
+ * Cập nhật: Đọc API Key từ biến môi trường (.env) theo hướng dẫn.
  */
 
 export const CONFIG = {
     // --- 1. Cấu hình API ---
-    // URL của Backend (Khi nào có Server thật thì đổi link này)
-    API_BASE_URL: 'https://api.your-backend.com/v1',
+    API_BASE_URL: 'http://localhost:8000/api', 
     
-    // Chế độ giả lập dữ liệu (Mocking)
-    // true: Trả về dữ liệu cứng (code trong api.js) - Dùng khi chưa có Backend
-    // false: Gọi fetch() tới API_BASE_URL thực sự
-    USE_MOCK_DATA: true, 
-    
-    // Giả lập độ trễ mạng (milliseconds) để test hiệu ứng Loading
+    USE_MOCK_DATA: false, 
     MOCK_DELAY: 800, 
 
     // --- 2. Cấu hình Bản đồ (Leaflet) ---
-    // Tọa độ trung tâm mặc định (TP. Hồ Chí Minh)
     DEFAULT_COORDS: [10.7769, 106.7009], 
-    
-    // Mức zoom mặc định (1-20)
     DEFAULT_ZOOM: 14,
-    
-    // Nguồn gạch bản đồ (OpenStreetMap)
     TILE_LAYER_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     
-    // --- 3. Các cấu hình khác ---
-    // Số lượng điểm gợi ý tối đa hiển thị
-    MAX_SUGGESTIONS: 10,
+    // --- 3. Cấu hình API Key (ĐỌC TỪ FILE .ENV) ---
     
-    // Đường dẫn icon/ảnh mặc định nếu ảnh bị lỗi
+    // Auth Token: Nếu trong .env có thì lấy, không thì dùng chuỗi rỗng
+    AUTH_TOKEN: process.env.AUTH_TOKEN || '', 
+    
+    // Khóa VietMap: Đọc biến VIETMAP_API_KEY như trong ảnh hướng dẫn
+    VIETMAP_KEY_FRONTEND: process.env.VIETMAP_API_KEY, 
+    
+    // Khóa Gemini: Đọc biến GEMINI_API_KEY như trong ảnh hướng dẫn
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY, 
+    
+    // --- 4. Các cấu hình khác ---
+    MAX_SUGGESTIONS: 10,
     DEFAULT_IMAGE: 'https://via.placeholder.com/150?text=No+Image'
 };
