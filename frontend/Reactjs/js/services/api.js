@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 
-// --- MOCK DATA (Giữ nguyên) ---
+// --- MOCK DATA (Giữ nguyên để test) ---
 const MOCK_DB = [
     { 
         id: 1, 
@@ -30,7 +30,7 @@ const MOCK_DB = [
         temp: '33°C', 
         weatherIcon: 'fa-cloud-sun',
         img: 'https://via.placeholder.com/150/E76F51/FFFFFF?text=Cho', 
-        desc: 'Khu chợ biểu tượng của Sài Gòn, nơi bạn có thể tìm thấy mọi thứ.' 
+        desc: 'Khu chợ biểu tượng của Sài Gòn.' 
     },
     { 
         id: 3, 
@@ -45,7 +45,7 @@ const MOCK_DB = [
         temp: '31°C', 
         weatherIcon: 'fa-cloud',
         img: 'https://via.placeholder.com/150/F4A261/FFFFFF?text=BuuDien', 
-        desc: 'Kiến trúc Pháp cổ kính tuyệt đẹp, điểm check-in không thể bỏ qua.' 
+        desc: 'Kiến trúc Pháp cổ kính tuyệt đẹp.' 
     },
     { 
         id: 4, 
@@ -60,7 +60,7 @@ const MOCK_DB = [
         temp: '28°C', 
         weatherIcon: 'fa-wind',
         img: 'https://via.placeholder.com/150/264653/FFFFFF?text=L81', 
-        desc: 'Tòa nhà cao nhất Việt Nam, đài quan sát view toàn cảnh thành phố.' 
+        desc: 'Tòa nhà cao nhất Việt Nam.' 
     }
 ];
 
@@ -68,9 +68,8 @@ class ApiService {
     constructor() {
         this.baseUrl = CONFIG.API_BASE_URL; 
         this.useMock = CONFIG.USE_MOCK_DATA;
-	
-	console.log("🛠️ API Service khởi tạo. Chế độ Mock:", this.useMock);
-        console.log("🛠️ Mock DB hiện có:", MOCK_DB.length, "địa điểm.");
+        
+        console.log("🛠️ API Service khởi tạo. Chế độ Mock:", this.useMock);
     }
 
     _mockDelay(data) {
@@ -78,7 +77,7 @@ class ApiService {
     }
     
     /**
-     * Helper POST request (Đã thêm Auth Header)
+     * Helper POST request
      */
     async _apiPost(path, body) {
         const url = `${this.baseUrl}${path}`;
@@ -86,7 +85,6 @@ class ApiService {
             "Content-Type": "application/json"
         };
         
-        // Thêm Token xác thực nếu có
         if (CONFIG.AUTH_TOKEN) {
             headers["Authorization"] = `Bearer ${CONFIG.AUTH_TOKEN}`; 
         }
@@ -96,18 +94,22 @@ class ApiService {
             headers: headers,
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        if (!response.ok) {
+            // Đọc text lỗi để dễ debug nếu server trả HTML thay vì JSON
+            const errText = await response.text();
+            throw new Error(`HTTP error ${response.status}: ${errText}`);
+        }
         return await response.json();
     }
     
     /**
-     * Helper GET request (Đã thêm Auth Header)
+     * Helper GET request
      */
     async _apiGet(path) {
         const url = `${this.baseUrl}${path}`;
         const headers = {};
         
-        // Thêm Token xác thực nếu có
         if (CONFIG.AUTH_TOKEN) {
             headers["Authorization"] = `Bearer ${CONFIG.AUTH_TOKEN}`; 
         }
@@ -117,20 +119,17 @@ class ApiService {
         return await response.json();
     }
 
-
-    // --- ADAPTER: CẦU NỐI GIỮA BACKEND VÀ FRONTEND ---
+    // --- ADAPTER: CẦU NỐI DỮ LIỆU ---
     _mapApiToApp(item) {
-        // Cố gắng lấy tên tiếng Việt nếu có (từ Recommendation API)
         const displayName = item.name_vi || item.name || (item.display_name ? item.display_name.split(',')[0] : 'Địa điểm chưa đặt tên');
         
-        // Lấy tọa độ
         const lat = item.coordinates ? item.coordinates.lat : item.lat;
         const lng = item.coordinates ? item.coordinates.lng : item.lon || item.lng;
         
         return {
             id: item.location_id || item.place_id || item.id || Date.now() + Math.random(), 
             name: displayName,
-            type: (item.categories && item.categories.length > 0) ? item.categories[0] : 'Địa điểm', // Lấy category đầu tiên
+            type: (item.categories && item.categories.length > 0) ? item.categories[0] : 'Địa điểm',
             address: item.address || item.district || 'Đang cập nhật địa chỉ',
             price: item.price || '---', 
             status: item.status || 'Mở cửa',
@@ -145,14 +144,14 @@ class ApiService {
     }
 
     _getPlaceImage(name, type) {
-        const n = name.toLowerCase();
+        const n = (name || '').toLowerCase();
         if (n.includes('coffee') || n.includes('cafe')) return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=300&q=80';
         if (n.includes('chợ') || n.includes('market')) return 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=300&q=80';
         if (n.includes('công viên') || n.includes('park')) return 'https://images.unsplash.com/photo-1496417263034-38ec4f0d665a?auto=format&fit=crop&w=300&q=80';
         return 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=300&q=80'; 
     }
 
-    // --- API 1: TÌM KIẾM (Sử dụng VietMap Search API) ---
+    // --- API 1: TÌM KIẾM ---
     async getSuggestions(keyword = '') {
         if (this.useMock) {
             const results = keyword 
@@ -166,71 +165,61 @@ class ApiService {
             const path = `/vietmap/search?query=${encodeURIComponent(keyword)}`; 
             const data = await this._apiGet(path);
             
-            return data.map(item => this._mapApiToApp(item));
+            // [AN TOÀN] Kiểm tra data phải là mảng mới map, nếu không sẽ crash app
+            if (Array.isArray(data)) {
+                return data.map(item => this._mapApiToApp(item));
+            } else {
+                console.warn("API Search trả về dữ liệu không đúng định dạng:", data);
+                return [];
+            }
 
         } catch (error) {
             console.error("Lỗi getSuggestions:", error);
-            return MOCK_DB; 
+            return []; // Trả về rỗng thay vì Mock để biết là lỗi thật
         }
     }
 
-    // --- API 2: CHI TIẾT (Sử dụng VietMap Search API làm proxy) ---
+    // --- API 2: CHI TIẾT ---
     async getLocationDetails(name) {
         if (this.useMock) {
             const found = MOCK_DB.find(d => d.name === name);
             if (found) return this._mockDelay(found);
-            
-            return this._mockDelay(this._mapApiToApp({
-                name: name,
-                display_name: 'Địa điểm Mock ngẫu nhiên',
-                lat: 10.77 + Math.random() * 0.01,
-                lon: 106.69 + Math.random() * 0.01
-            }));
+            return this._mockDelay(this._mapApiToApp({ name: name, lat: 10.77, lon: 106.69 }));
         }
 
         try {
             const path = `/vietmap/search?query=${encodeURIComponent(name)}`; 
             const data = await this._apiGet(path);
             
-            if (data && data.length > 0) {
+            if (Array.isArray(data) && data.length > 0) {
                 return this._mapApiToApp(data[0]);
             }
         } catch (e) {
             console.error("Lỗi getLocationDetails:", e);
         }
         
+        // Trả về dữ liệu giả nếu không tìm thấy để không crash map
         return this._mapApiToApp({
             name: name,
-            display_name: 'Không tìm thấy địa điểm (API Search không trả về kết quả)',
+            display_name: 'Không tìm thấy thông tin',
             lat: 10.7769,
             lon: 106.7009
         });
     }
 
-    // --- API 3: TÍNH LỘ TRÌNH (Sử dụng VietMap Route API) ---
+    // --- API 3: TÍNH LỘ TRÌNH ---
    async calculateRoute(routeList) {
-        console.log(`[Route] Tính đường qua ${routeList.length} điểm.`);
-
         if (!routeList || routeList.length < 2) return null;
 
         if (this.useMock) {
+            // Mock logic cũ...
             const path = [];
-            for (let i = 0; i < routeList.length - 1; i++) {
-                const current = routeList[i];
-                const next = routeList[i+1];
-                path.push([current.lat, current.lng]);
-                const midLat = (current.lat + next.lat) / 2;
-                const midLng = (current.lng + next.lng) / 2;
-                path.push([midLat + 0.0002, midLng - 0.0002]); 
-            }
-            const last = routeList[routeList.length - 1];
-            path.push([last.lat, last.lng]);
-            return this._mockDelay({
-                success: true,
-                distance: 'Đang cập nhật...',
-                duration: '---',
-                path: path
-            });
+            const start = routeList[0];
+            const end = routeList[routeList.length - 1];
+            path.push([start.lat, start.lng]);
+            path.push([(start.lat + end.lat)/2, (start.lng + end.lng)/2]);
+            path.push([end.lat, end.lng]);
+            return this._mockDelay({ success: true, distance: 'Mock Dist', duration: 'Mock Time', path: path });
         }
         
         try {
@@ -246,12 +235,14 @@ class ApiService {
             };
             
             const routeResult = await this._apiPost("/vietmap/route", payload); 
+            // Nếu API trả về mảng (nhiều routes), lấy cái đầu tiên
+            const firstRoute = Array.isArray(routeResult) ? routeResult[0] : routeResult;
 
             return {
                 success: true,
-                distance: routeResult[0]?.distance || 'N/A', 
-                duration: routeResult[0]?.duration || 'N/A',
-                path: routeResult.path || [] 
+                distance: firstRoute?.distance || 'N/A', 
+                duration: firstRoute?.duration || 'N/A',
+                path: routeResult.path || [] // Đảm bảo key path đúng với response backend
             };
 
         } catch (error) {
@@ -260,36 +251,60 @@ class ApiService {
         }
     }
     
-    // --- API 4: CHATBOT RECOMMENDATION (Mới) ---
+    // --- API 4: CHATBOT (Tách /chat và /parse) ---
     async chatRecommend(message) {
         console.log(`[AI Chat] Request: "${message}"`);
         
         if (this.useMock) {
             return this._mockDelay({
-                reply: `Tôi đang ở chế độ Mock. Tôi đã nhận được yêu cầu: "${message}".`,
-                selected_locations: MOCK_DB.slice(0, 2) 
+                reply: `[Mock] Đang gọi 2 API /chat và /parse...`,
+                selected_locations: [] 
             });
         }
         
         try {
-            const payload = {
-                user_id: 'guest-user-123', 
-                message: message
-            };
-            
-            const result = await this._apiPost("/ai/recommend-chat", payload);
-            
-            const locations = result.selected_locations.map(item => this._mapApiToApp(item));
-            
+            // [LOGIC] Chỉ gửi question, không thêm context vị trí theo yêu cầu
+            const payload = { question: message };
+
+            // Gọi song song 2 API để tối ưu tốc độ
+            const [chatRes, parseRes] = await Promise.allSettled([
+                this._apiPost("/chat", payload),  // Lấy text
+                this._apiPost("/parse", payload)  // Lấy địa điểm
+            ]);
+
+            // 1. Xử lý Text trả lời
+            let finalReply = "Xin lỗi, server không phản hồi.";
+            if (chatRes.status === 'fulfilled') {
+                const data = chatRes.value;
+                // Fallback các key phổ biến
+                finalReply = data.answer || data.result || data.reply || (typeof data === 'string' ? data : JSON.stringify(data));
+            } else {
+                console.error("Lỗi API /chat:", chatRes.reason);
+            }
+
+            // 2. Xử lý Địa điểm
+            let finalLocations = [];
+            if (parseRes.status === 'fulfilled') {
+                const data = parseRes.value;
+                // Tìm mảng địa điểm trong response
+                const rawList = data.locations || data.places || (Array.isArray(data) ? data : []);
+                
+                if (Array.isArray(rawList)) {
+                    finalLocations = rawList.map(item => this._mapApiToApp(item));
+                }
+            } else {
+                console.warn("API /parse lỗi hoặc không tìm thấy địa điểm:", parseRes.reason);
+            }
+
             return {
-                reply: result.reply,
-                selected_locations: locations
+                reply: finalReply,
+                selected_locations: finalLocations
             };
             
         } catch (error) {
-            console.error("Lỗi chatRecommend:", error);
+            console.error("Lỗi hệ thống Chat:", error);
             return { 
-                reply: "Xin lỗi, tôi không thể kết nối đến Trợ lý AI lúc này.", 
+                reply: "Xin lỗi, hiện tại tôi không thể kết nối tới server.", 
                 selected_locations: [] 
             };
         }
