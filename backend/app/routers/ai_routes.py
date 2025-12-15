@@ -13,11 +13,11 @@ ai_service = AIService()
 
 
 @router.post("/parse")
-def parse_message(req: AIRequest):
-    result = ai_service.parse_user_message(req.message)
+async def parse_message(req: AIRequest):
+    result = await ai_service.parse_user_message(req.message)
     return {"ai_result": result}
 
 
 @router.post("/chat")
-def chat(req: AIRequest):
-    return {"reply": ai_service.generate_short_answer(req.message)}
+async def chat(req: AIRequest):
+    return {"reply": await ai_service.generate_short_answer(req.message)}

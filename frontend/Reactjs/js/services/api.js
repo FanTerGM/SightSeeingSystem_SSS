@@ -266,12 +266,12 @@ class ApiService {
         
         try {
             // [LOGIC] Chỉ gửi question, không thêm context vị trí theo yêu cầu
-            const payload = { question: message };
+            const payload = { message: message };
 
             // Gọi song song 2 API để tối ưu tốc độ
             const [chatRes, parseRes] = await Promise.allSettled([
-                this._apiPost("/chat", payload),  // Lấy text
-                this._apiPost("/parse", payload)  // Lấy địa điểm
+                this._apiPost("/ai/chat", payload),  // Lấy text
+                this._apiPost("/ai/parse", payload)  // Lấy địa điểm
             ]);
 
             // 1. Xử lý Text trả lời

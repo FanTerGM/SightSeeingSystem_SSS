@@ -9,6 +9,7 @@ services:
       # We use the service name 'postgres' as the hostname
       - DATABASE_URL=postgresql://tourism_user:dev_password@postgres:5432/tourism_db
       - REDIS_URL=redis://redis:6379
+      - VIETMAP_BASE_URL=https://maps.vietmap.vn
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - VIETMAP_API_KEY=${VIETMAP_API_KEY}
     depends_on:
