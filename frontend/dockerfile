@@ -4,7 +4,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY ./Reactjs/ /usr/share/nginx/html/
 
 # entrypoint script (must be executable)
-COPY ./99-env.sh /docker-entrypoint.d/99-env.sh
-RUN chmod +x /docker-entrypoint.d/99-env.sh
+COPY ./99-env.sh ./frontend/99-env.sh
+RUN chmod +x ./frontend/99-env.sh
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
