@@ -2,27 +2,29 @@ version: '3.8'
 services:
   backend:
     build: ./backend
+    # Maps localhost:8000 to container:8000 (FastAPI)
     ports:
-      - "5000:5000"
+      - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:password@postgres:5432/tourism_db
+      # We use the service name 'postgres' as the hostname
+      - DATABASE_URL=postgresql://tourism_user:dev_password@postgres:5432/tourism_db
       - REDIS_URL=redis://redis:6379
-      - VIETMAP_API_KEY=${VIETMAP_API_KEY}
-      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - VIETMAP_API_KEY=${VIETMAP_API_KEY}
     depends_on:
       - postgres
       - redis
+    # Mounts your local 'backend' folder to '/code' in the container for live editing
     volumes:
-      - ./backend:/app  # Hot reload during dev
+      - ./backend:/code
 
   frontend:
     build: ./frontend
+    
     ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-
+      - "3000:80"
+    env_file:
+    - .env
   postgres:
     image: postgres:15
     environment:

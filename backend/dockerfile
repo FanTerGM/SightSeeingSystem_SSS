@@ -1,0 +1,30 @@
+# Base image: Python 3.10 (Debian-based)
+FROM python:3.10-slim
+
+# Prevent Python from writing .pyc files and enable unbuffered logs
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working directory
+WORKDIR /code
+
+# (Optional but common) Install minimal OS deps needed by many Python wheels
+# Remove build-essential if you don't compile any native deps.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY app/requirements.txt /code/app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r /code/app/requirements.txt
+
+# Copy application code
+COPY . /code
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Run FastAPI (adjust module path if needed)
+# Example: if your file is app/main.py and has "app = FastAPI()"
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

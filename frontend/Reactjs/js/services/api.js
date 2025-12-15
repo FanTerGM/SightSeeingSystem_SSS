@@ -238,6 +238,8 @@ class ApiService {
             // Nếu API trả về mảng (nhiều routes), lấy cái đầu tiên
             const firstRoute = Array.isArray(routeResult) ? routeResult[0] : routeResult;
 
+            const p0 = routeResult?.paths?.[0];
+
             return {
                 success: true,
                 distance: firstRoute?.distance || 'N/A', 
