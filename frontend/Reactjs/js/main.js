@@ -253,7 +253,7 @@ class AppController {
 
             try {
                 // 2. Gọi API Chatbot mới
-                const chatResult = await apiService.chatRecommend(txt);
+                const chatResult = await apiService.chat(txt);
                 
                 // 3. Hiển thị phản hồi từ AI
                 this.ui.addChatMessage(chatResult.reply, 'ai');
