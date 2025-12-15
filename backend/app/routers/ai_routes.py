@@ -19,5 +19,5 @@ def parse_message(req: AIRequest):
 
 
 @router.post("/chat")
-def chat(req: AIRequest):
+async def chat(req: AIRequest):
     return {"reply": ai_service.generate_short_answer(req.message)}

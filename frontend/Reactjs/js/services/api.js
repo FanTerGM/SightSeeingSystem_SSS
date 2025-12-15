@@ -208,7 +208,7 @@ class ApiService {
     }
 
     // --- API 3: TÍNH LỘ TRÌNH (Sử dụng VietMap Route API) ---
-   async calculateRoute(routeList) {
+    async calculateRoute(routeList) {
         console.log(`[Route] Tính đường qua ${routeList.length} điểm.`);
 
         if (!routeList || routeList.length < 2) return null;
@@ -246,7 +246,6 @@ class ApiService {
             };
             
             const routeResult = await this._apiPost("/vietmap/route", payload); 
-
             const p0 = routeResult?.paths?.[0];
 
             return {

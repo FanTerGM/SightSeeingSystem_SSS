@@ -62,6 +62,8 @@ class VietMapService:
         vehicle: str = "car",
         alternatives: bool = False,
     ):
+        if not BASE_URL:
+            raise RuntimeError("VIETMAP_BASE_URL is not configured")    
         point_param = f"{start[1]},{start[0]}|{end[1]},{end[0]}"
         params = {"point": point_param, "vehicle": vehicle}
         if alternatives:
