@@ -1,17 +1,13 @@
 /**
  * CONFIGURATION FILE
- * Lưu trữ các biến môi trường, cài đặt mặc định và cấu hình API.
+ * Cập nhật: Đọc API Key từ biến môi trường (.env) theo hướng dẫn.
  */
 
 export const CONFIG = {
     // --- 1. Cấu hình API ---
-    // URL của Backend 
     API_BASE_URL: 'http://localhost:8000/api', 
     
-    // Đã chuyển sang FALSE để gọi API thật
     USE_MOCK_DATA: false, 
-    
-    // Giả lập độ trễ mạng (milliseconds) 
     MOCK_DELAY: 800, 
 
     // --- 2. Cấu hình Bản đồ (Leaflet) ---
@@ -19,15 +15,16 @@ export const CONFIG = {
     DEFAULT_ZOOM: 14,
     TILE_LAYER_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     
-    // --- 3. Cấu hình API Key MỚI (ĐÃ CẬP NHẬT) ---
-    // Auth Token để xác thực người dùng (dùng trong Header)
-    AUTH_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.USER_DEFAULT_TOKEN', 
+    // --- 3. Cấu hình API Key (ĐỌC TỪ FILE .ENV) ---
     
-    // Khóa VietMap (Dù Backend dùng, vẫn lưu trữ ở đây cho đầy đủ)
-    VIETMAP_KEY_FRONTEND: '6849680e1e7687ac6c73bf5a30b5a2e9e18f44e5d340c746', 
+    // Auth Token: Nếu trong .env có thì lấy, không thì dùng chuỗi rỗng
+    AUTH_TOKEN: process.env.AUTH_TOKEN || '', 
     
-    // Khóa Gemini (Dùng cho các cuộc gọi AI)
-    GEMINI_API_KEY: 'AIzaSyA3_Ww8Eg_qnPqaYq0pcyn1O15eVKPRG8w', 
+    // Khóa VietMap: Đọc biến VIETMAP_API_KEY như trong ảnh hướng dẫn
+    VIETMAP_KEY_FRONTEND: process.env.VIETMAP_API_KEY, 
+    
+    // Khóa Gemini: Đọc biến GEMINI_API_KEY như trong ảnh hướng dẫn
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY, 
     
     // --- 4. Các cấu hình khác ---
     MAX_SUGGESTIONS: 10,
