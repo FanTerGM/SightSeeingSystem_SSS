@@ -254,60 +254,33 @@ class ApiService {
     }
     
     // --- API 4: CHATBOT (Tách /chat và /parse) ---
-    async chatRecommend(message) {
+    async chat(message, userId = null) {
         console.log(`[AI Chat] Request: "${message}"`);
-        
+
         if (this.useMock) {
             return this._mockDelay({
-                reply: `[Mock] Đang gọi 2 API /chat và /parse...`,
-                selected_locations: [] 
+            mode: "chat",
+            reply: `[Mock] Chat-router`,
+            selected_locations: []
             });
         }
-        
         try {
-            // [LOGIC] Chỉ gửi question, không thêm context vị trí theo yêu cầu
-            const payload = { message: message };
+            const payload = { message, user_id: userId };
 
-            // Gọi song song 2 API để tối ưu tốc độ
-            const [chatRes, parseRes] = await Promise.allSettled([
-                this._apiPost("/ai/chat", payload),  // Lấy text
-                this._apiPost("/ai/parse", payload)  // Lấy địa điểm
-            ]);
-
-            // 1. Xử lý Text trả lời
-            let finalReply = "Xin lỗi, server không phản hồi.";
-            if (chatRes.status === 'fulfilled') {
-                const data = chatRes.value;
-                // Fallback các key phổ biến
-                finalReply = data.answer || data.result || data.reply || (typeof data === 'string' ? data : JSON.stringify(data));
-            } else {
-                console.error("Lỗi API /chat:", chatRes.reason);
-            }
-
-            // 2. Xử lý Địa điểm
-            let finalLocations = [];
-            if (parseRes.status === 'fulfilled') {
-                const data = parseRes.value;
-                // Tìm mảng địa điểm trong response
-                const rawList = data.locations || data.places || (Array.isArray(data) ? data : []);
-                
-                if (Array.isArray(rawList)) {
-                    finalLocations = rawList.map(item => this._mapApiToApp(item));
-                }
-            } else {
-                console.warn("API /parse lỗi hoặc không tìm thấy địa điểm:", parseRes.reason);
-            }
+            const data = await this._apiPost("/ai/chat-router", payload);
 
             return {
-                reply: finalReply,
-                selected_locations: finalLocations
+            reply: data.reply ?? "Xin lỗi, server không phản hồi.",
+            selected_locations: data.selected_locations ?? [],
+            mode: data.mode ?? "chat"
             };
-            
+
         } catch (error) {
             console.error("Lỗi hệ thống Chat:", error);
-            return { 
-                reply: "Xin lỗi, hiện tại tôi không thể kết nối tới server.", 
-                selected_locations: [] 
+            return {
+            reply: "Xin lỗi, hiện tại tôi không thể kết nối tới server.",
+            selected_locations: [],
+            mode: "chat"
             };
         }
     }

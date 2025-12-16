@@ -3,6 +3,7 @@
 import os
 import google.generativeai as genai
 import re
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -90,3 +91,44 @@ class AIService:
         """
         response = await self.model.generate_content_async(prompt)
         return response.text
+
+    async def classify_mode(self, message: str) -> dict:
+        """
+        Decide whether to run recommendation pipeline or normal chat.
+        Returns: {"mode": "recommend"|"chat", "confidence": float}
+        """
+        prompt = f"""
+You are a strict classifier.
+Return ONLY valid JSON. No prose.
+
+Choose mode:
+- "recommend" if the user is asking for itinerary, places to go, suggestions, route planning, nearby food/coffee/attractions, schedule, plan trip.
+- "chat" otherwise.
+
+User message:
+\"\"\"{message}\"\"\"
+
+Return JSON:
+{{"mode":"chat|recommend","confidence":0.0}}
+"""
+        try:
+            response = await self.model.generate_content_async(prompt)
+            text = response.text.strip()
+
+            # strip ```json blocks if Gemini wraps it
+            match = re.search(r"```(?:json)?(.*?)```", text, re.DOTALL)
+            if match:
+                text = match.group(1).strip()
+
+            data = json.loads(text)
+            mode = data.get("mode", "chat")
+            conf = float(data.get("confidence", 0.5))
+
+            if mode not in ("chat", "recommend"):
+                mode = "chat"
+
+            return {"mode": mode, "confidence": conf}
+
+        except Exception as e:
+            print(f"AI classify_mode Error: {e}")
+            return {"mode": "chat", "confidence": 0.0}
