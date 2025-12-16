@@ -19,7 +19,9 @@ class VietMapService:
             params = {}
         params["apikey"] = VIETMAP_API_KEY
 
-        url = f"{BASE_URL.rstrip('/')}/{path.lstrip('/')}"
+        base = BASE_URL.rstrip("/") if BASE_URL else ""
+        endpoint = path.lstrip("/")
+        url = f"{base}/{endpoint}"
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
@@ -36,30 +38,18 @@ class VietMapService:
         return await VietMapService._get("autocomplete", {"text": q, "size": limit})
 
     @staticmethod
-    async def geocode(address: str, limit: int = 5):
-        return await VietMapService._get("search", {"text": address, "size": limit})
+    async def geocode(address: str, limit: int = 3):
+        params = {"text": address, "size": limit, "display_type": 1}
+        return await VietMapService._get("search", params)
 
     @staticmethod
     async def reverse_geocode(lat: float, lng: float):
-        return await VietMapService._get("reverse", {"point": f"{lat},{lng}"})
-
-    @staticmethod
-    async def nearby_search(
-        lat: float,
-        lng: float,
-        radius: int = 500,
-        category: Optional[str] = None,
-        limit: int = 3,
-    ):
         params = {
-            "text": category if category else "",
-            
-            "focus.point.lat": lat,
-            "focus.point.lon": lng,
-            
-            "size": limit
+            "point.lat": lat,
+            "point.lon": lng,
+            "api-version": "1.1",
         }
-        return await VietMapService._get("search", params)
+        return await VietMapService._get("reverse", params)
 
     @staticmethod
     async def route(

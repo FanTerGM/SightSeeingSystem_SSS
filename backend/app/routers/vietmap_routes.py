@@ -24,10 +24,10 @@ class RouteRequest(BaseModel):
 
 
 @router.get("/autocomplete")
-async def autocomplete(q: str = Query(..., min_length=1), limit: int = 5):
+async def autocomplete(text: str = Query(..., min_length=1), limit: int = 5):
     _ensure_key()
     try:
-        return await VietMapService.autocomplete(q, limit=limit)
+        return await VietMapService.autocomplete(text, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"VietMap autocomplete error: {e}")
 
