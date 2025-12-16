@@ -73,9 +73,12 @@ export class MapModule {
 
         locations.forEach(loc => {
             // Chỉ vẽ nếu có tọa độ hợp lệ
-            if (loc.lat && loc.lng) {
-                const marker = L.marker([loc.lat, loc.lng]);
-                
+            const lat = Number(loc.lat);
+            const lng = Number(loc.lng);
+
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                const marker = L.marker([lat, lng]);
+
                 // Gắn Popup
                 marker.bindPopup(this.createPopupContent(loc), {
                     maxWidth: 280,

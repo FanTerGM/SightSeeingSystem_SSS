@@ -1,5 +1,5 @@
 /**
- * MAIN CONTROLLER - Đã gộp đầy đủ tính năng: Toggle Map & Floating Back Button
+ * MAIN CONTROLLER - Improved version with better error handling
  */
 
 import { apiService } from './services/api.js';
@@ -20,30 +20,80 @@ class AppController {
 
     async init() {
         console.log("🚀 App đang khởi động...");
+        console.log("📍 API Base URL:", apiService.baseUrl);
+        console.log("🎭 Mock Mode:", apiService.useMock);
+        
         this.setupEventListeners();
         await this.loadInitialData();
     }
 
     async loadInitialData() {
         try {
-            // Tải dữ liệu gợi ý ban đầu (ví dụ: tất cả locations)
-            this.state.allSuggestions = await apiService.getSuggestions(); 
+            console.log("🔄 Loading initial suggestions...");
+            
+            // Strategy 1: Try searching with keyword
+            console.log("📡 Attempting API call with keyword: 'Dinh Độc Lập'");
+            this.state.allSuggestions = await apiService.getSuggestions('Dinh Độc Lập');
+            
+            console.log("✅ API Response received");
+            console.log("📊 Number of suggestions:", this.state.allSuggestions.length);
+            
+            // If API returns no results, try without keyword
+            if (this.state.allSuggestions.length === 0) {
+                console.warn("⚠️ No results with keyword, trying empty search...");
+                this.state.allSuggestions = await apiService.getSuggestions('');
+            }
+            
+            // If still no results, fall back to mock
+            if (this.state.allSuggestions.length === 0) {
+                console.warn("⚠️ No results from API. Falling back to mock data...");
+                apiService.useMock = true;
+                this.state.allSuggestions = await apiService.getSuggestions();
+                console.log("📊 Mock data loaded:", this.state.allSuggestions.length, "items");
+            }
+            
+            // Update UI
             this.updateSuggestionUI();
+            console.log("🗺️ Drawing", this.state.allSuggestions.length, "markers on map...");
+            this.map.drawMarkers(this.state.allSuggestions);
+            console.log("✅ Initialization complete!");
+            
         } catch (error) {
-            console.error("Lỗi tải data:", error);
+            console.error("❌ Error loading data:", error);
+            console.error("📋 Error details:", error.message);
+            console.error("🔍 Stack trace:", error.stack);
+            
+            // Ultimate fallback to mock data
+            console.log("🆘 Activating emergency fallback to mock data...");
+            apiService.useMock = true;
+            
+            try {
+                this.state.allSuggestions = await apiService.getSuggestions();
+                console.log("✅ Mock data loaded successfully:", this.state.allSuggestions.length, "items");
+                this.updateSuggestionUI();
+                this.map.drawMarkers(this.state.allSuggestions);
+            } catch (mockError) {
+                console.error("💥 Even mock data failed! This should never happen:", mockError);
+                alert("Có lỗi nghiêm trọng khi khởi động ứng dụng. Vui lòng kiểm tra console.");
+            }
         }
     }
 
     updateSuggestionUI() {
         const currentRouteIds = this.state.route.map(item => item.id);
+        console.log("🎨 Updating suggestion UI. Excluding", currentRouteIds.length, "IDs");
         this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
     }
 
-    // --- QUẢN LÝ LỘ TRÌNH (Giữ nguyên) ---
+    // --- QUẢN LÝ LỘ TRÌNH ---
     addLocationToRoute(locationData, shouldRefreshMap = true) {
         const exists = this.state.route.find(i => i.id === locationData.id);
-        if (exists) return; 
+        if (exists) {
+            console.log("⚠️ Location already in route:", locationData.name);
+            return;
+        }
 
+        console.log("➕ Adding location to route:", locationData.name);
         this.state.route.push(locationData);
         this.ui.addStepItem(locationData, (deletedItem) => {
             this.removeLocation(deletedItem); 
@@ -55,31 +105,46 @@ class AppController {
     }
 
     removeLocation(locationData) {
+        console.log("➖ Removing location from route:", locationData.name);
         this.state.route = this.state.route.filter(item => item.id !== locationData.id);
         this.updateSuggestionUI();
         this.refreshMapState();
     }
 
     async refreshMapState() {
+        console.log("🔄 Refreshing map. Route has", this.state.route.length, "locations");
         const updateBtn = document.getElementById('update-map-btn');
         if (updateBtn) this.ui.setLoading(updateBtn, true);
 
         try {
+            // Always draw markers for current route
             this.map.drawMarkers(this.state.route);
+            console.log("✅ Markers drawn for", this.state.route.length, "locations");
+            
+            // Calculate route if we have 2+ locations
             if (this.state.route.length >= 2) {
+                console.log("🛣️ Calculating route between", this.state.route.length, "points...");
                 const routeResult = await apiService.calculateRoute(this.state.route);
-                if (routeResult && routeResult.path) {
+                
+                if (routeResult && routeResult.path && routeResult.path.length > 0) {
+                    console.log("✅ Route calculated. Path has", routeResult.path.length, "points");
+                    console.log("📏 Distance:", routeResult.distance, "| Duration:", routeResult.duration);
                     this.map.drawPolyline(routeResult.path);
+                } else {
+                    console.warn("⚠️ No route path returned from API");
                 }
+            } else {
+                console.log("ℹ️ Need at least 2 locations to calculate route");
             }
         } catch (err) {
-            console.error("Lỗi cập nhật bản đồ:", err);
+            console.error("❌ Error refreshing map:", err);
+            alert("Không thể tính toán lộ trình. Vui lòng thử lại.");
         } finally {
             if (updateBtn) setTimeout(() => this.ui.setLoading(updateBtn, false), 500);
         }
     }
 
-    // --- XỬ LÝ SỰ KIỆN (Giữ nguyên phần lớn) ---
+    // --- XỬ LÝ SỰ KIỆN ---
     setupEventListeners() {
         // 1. Form Submit
         const form = document.getElementById('route-form');
@@ -90,10 +155,11 @@ class AppController {
         // 2. Drag & Drop
         this.setupDragAndDrop();
 
-        // 3. Nút "Chỉnh sửa lại" (Nút cũ ở dưới đáy - Dành cho PC)
+        // 3. Nút "Chỉnh sửa lại"
         const editBtn = document.getElementById('edit-route-btn');
         if(editBtn) {
             editBtn.onclick = () => {
+                console.log("↩️ Returning to builder view");
                 this.ui.navigateTo('builder');
                 this.map.clearRoute(); 
                 this.state.route = []; 
@@ -102,19 +168,18 @@ class AppController {
             };
         }
 
-        // --- 4. NÚT QUAY LẠI NỔI (FLOATING BACK BUTTON) ---
+        // 4. FLOATING BACK BUTTON
         const floatingBackBtn = document.getElementById('floating-back-btn');
         if (floatingBackBtn) {
             floatingBackBtn.onclick = () => {
                 this.ui.navigateTo('builder');
-                
                 if (document.body.classList.contains('full-map')) {
                     document.getElementById('mobile-map-toggle').click();
                 }
             };
         }
 
-        // 5. Nút Toggle Map (Mũi tên mở rộng bản đồ - Góc phải dưới)
+        // 5. Toggle Map Button
         const toggleBtn = document.getElementById('mobile-map-toggle');
         if (toggleBtn) {
             toggleBtn.onclick = () => {
@@ -127,32 +192,40 @@ class AppController {
             };
         }
         
-        // 6. Cập nhật map khi resize (quan trọng cho mobile transition)
+        // 6. Map resize observer
         const observer = new MutationObserver(() => {
              setTimeout(() => { this.map.map.invalidateSize(); }, 350);
         });
         observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-        // 7. Các nút chức năng khác (Giữ nguyên)
+        // 7. Other buttons
         const updateBtn = document.getElementById('update-map-btn');
         if (updateBtn) updateBtn.onclick = () => this.refreshMapState();
         
         this.setupPanelControls();
-        this.setupChat(); // <-- Đã được sửa logic
+        this.setupChat();
         
         window.addEventListener('chat-request', (e) => {
             this.openChatContext(e.detail);
         });
 
+        // 8. Search input with debounce
         const searchInput = document.querySelector('.search-box-wrapper input');
         if (searchInput) {
             let timeout = null;
             searchInput.addEventListener('input', (e) => {
                 clearTimeout(timeout);
+                const keyword = e.target.value.trim();
+                console.log("🔍 Search keyword:", keyword || "(empty)");
+                
                 timeout = setTimeout(async () => {
-                    const keyword = e.target.value;
-                    this.state.allSuggestions = await apiService.getSuggestions(keyword);
-                    this.updateSuggestionUI();
+                    try {
+                        this.state.allSuggestions = await apiService.getSuggestions(keyword);
+                        console.log("📊 Search results:", this.state.allSuggestions.length);
+                        this.updateSuggestionUI();
+                    } catch (error) {
+                        console.error("❌ Search error:", error);
+                    }
                 }, 500); 
             });
         }
@@ -160,19 +233,33 @@ class AppController {
 
     async handleFormSubmit(e) {
         e.preventDefault();
+        console.log("📝 Form submitted");
+        
         const submitBtn = e.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang xử lý...';
         submitBtn.disabled = true;
 
         try {
-            const startName = document.getElementById('start-point').value;
-            const endName = document.getElementById('end-point').value;
+            const startName = document.getElementById('start-point').value.trim();
+            const endName = document.getElementById('end-point').value.trim();
+            
+            if (!startName || !endName) {
+                alert("Vui lòng nhập đầy đủ điểm đi và điểm đến!");
+                return;
+            }
+            
+            console.log("🔍 Looking up locations:", { start: startName, end: endName });
 
             const [startData, endData] = await Promise.all([
                 apiService.getLocationDetails(startName),
                 apiService.getLocationDetails(endName)
             ]);
+
+            console.log("✅ Found locations:", { 
+                start: `${startData.name} (${startData.lat}, ${startData.lng})`, 
+                end: `${endData.name} (${endData.lat}, ${endData.lng})` 
+            });
 
             this.state.route = [];
             document.getElementById('route-steps-container').innerHTML = '';
@@ -184,8 +271,8 @@ class AppController {
             await this.refreshMapState();
 
         } catch (err) {
-            alert("Có lỗi khi tìm địa điểm. Vui lòng thử lại!");
-            console.error(err);
+            console.error("❌ Form submission error:", err);
+            alert("Có lỗi khi tìm địa điểm. Vui lòng kiểm tra tên địa điểm và thử lại!");
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
@@ -211,6 +298,7 @@ class AppController {
             const rawData = e.dataTransfer.getData('application/json');
             if (rawData) {
                 const data = JSON.parse(rawData);
+                console.log("🎯 Dropped location:", data.name);
                 this.addLocationToRoute(data);
             }
         });
@@ -227,7 +315,6 @@ class AppController {
             document.getElementById('details-panel').style.display = 'none';
     }
 
-    // --- LOGIC CHAT MỚI ---
     setupChat() {
         const floatBtn = document.getElementById('floating-chat-btn');
         const sendBtn = document.getElementById('send-msg-btn');
@@ -244,7 +331,8 @@ class AppController {
             const txt = input.value.trim();
             if (!txt) return;
             
-            // 1. Thêm tin nhắn của user
+            console.log("💬 Sending chat message:", txt);
+            
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
             input.disabled = true;
@@ -252,19 +340,16 @@ class AppController {
             this.ui.showTypingIndicator(true);
 
             try {
-                // 2. Gọi API Chatbot mới
                 const chatResult = await apiService.chat(txt);
+                console.log("🤖 AI response:", chatResult);
                 
-                // 3. Hiển thị phản hồi từ AI
                 this.ui.addChatMessage(chatResult.reply, 'ai');
                 
-                // 4. Nếu AI có gợi ý địa điểm, cập nhật danh sách gợi ý
                 if (chatResult.selected_locations && chatResult.selected_locations.length > 0) {
-                    // Cập nhật state với gợi ý mới và refresh UI
+                    console.log("📍 AI suggested", chatResult.selected_locations.length, "locations");
                     this.state.allSuggestions = chatResult.selected_locations; 
                     this.updateSuggestionUI();
                     
-                    // Thêm thông báo nhẹ cho user biết
                     this.ui.addChatMessage(`
                         <span style="font-size:0.85rem; color:#137333;">
                         <i class="fas fa-check-circle"></i> Tôi đã cập nhật 
@@ -276,7 +361,7 @@ class AppController {
                 
             } catch (error) {
                 this.ui.addChatMessage("Đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.", 'ai');
-                console.error("Chatbot Error:", error);
+                console.error("❌ Chatbot Error:", error);
             } finally {
                 this.ui.showTypingIndicator(false);
                 input.disabled = false;
@@ -293,10 +378,7 @@ class AppController {
         if (!document.body.classList.contains('chat-open')) {
             document.getElementById('floating-chat-btn').click();
         }
-        // Gửi tin nhắn tự động vào chat
         document.getElementById('chat-input').value = `Gợi ý các địa điểm tương tự như ${contextName}`;
-        // (Tùy chọn: Gọi sendMessage() tự động hoặc chờ user nhấn Enter)
-        // document.getElementById('send-msg-btn').click();
     }
 }
 
