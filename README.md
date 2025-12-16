@@ -57,50 +57,6 @@ The system is designed to be deployed via Docker Compose.
 
 -----
 
-## 4\. Run Manually (Development)
-
-### Backend
-
-To run both your Python backend and the Node.js AI script manually, you need to open **two separate terminal windows** (or tabs) so they can run at the same time.
-
-#### Terminal 1: Python API (FastAPI)
-
-Run this to start the main backend server.
-
-```bash
-cd backend
-# Install Python dependencies (ensure you reference the file inside 'app')
-pip install -r app/requirements.txt
-
-# Start the server (referencing 'app.main' because main.py is inside the 'app' folder)
-uvicorn app.main:app --reload --port 8000
-```
-
-#### Terminal 2: AI Service (Node.js)
-
-Open a **new** terminal window and run this to start the AI listener.
-
-```bash
-cd backend/src
-# Install Node.js dependencies
-npm install
-
-# Start the AI script
-node ai.js
-```
-
-**Note:** Ensure `ai.js` is listening on a different port than `8000` (e.g., `3000` or `3001`) to avoid conflicts.
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
------
-
 ## Features (MVP)
 
   * **Itinerary Generator:** Input start location, time budget, and preferences.

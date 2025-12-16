@@ -3,6 +3,9 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 from pydantic import BaseModel
 from app.services.vietmap_service import VietMapService, VIETMAP_API_KEY
+import logging
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(prefix="/api/vietmap", tags=["VietMap"])
 
@@ -21,10 +24,10 @@ class RouteRequest(BaseModel):
 
 
 @router.get("/autocomplete")
-async def autocomplete(q: str = Query(..., min_length=1), limit: int = 5):
+async def autocomplete(text: str = Query(..., min_length=1), limit: int = 5):
     _ensure_key()
     try:
-        return await VietMapService.autocomplete(q, limit=limit)
+        return await VietMapService.autocomplete(text, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"VietMap autocomplete error: {e}")
 
@@ -38,6 +41,7 @@ async def route(request: RouteRequest):
             vehicle=request.vehicle,
         )
     except Exception as e:
+        logger.exception("Error in VietMap route")
         raise HTTPException(status_code=502, detail=f"VietMap route error: {e}")
 
 @router.get("/geocode")

@@ -9,6 +9,7 @@ load_dotenv()
 VIETMAP_API_KEY = os.getenv("VIETMAP_API_KEY")
 BASE_URL = os.getenv("VIETMAP_BASE_URL")
 
+
 class VietMapService:
     """Wrapper for VietMap APIs using Async HTTPX."""
 
@@ -18,7 +19,9 @@ class VietMapService:
             params = {}
         params["apikey"] = VIETMAP_API_KEY
 
-        url = f"{BASE_URL.rstrip('/')}/{path.lstrip('/')}"
+        base = BASE_URL.rstrip("/") if BASE_URL else ""
+        endpoint = path.lstrip("/")
+        url = f"{base}/{endpoint}"
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
@@ -35,25 +38,18 @@ class VietMapService:
         return await VietMapService._get("autocomplete", {"text": q, "size": limit})
 
     @staticmethod
-    async def geocode(address: str, limit: int = 5):
-        return await VietMapService._get("search", {"text": address, "size": limit})
+    async def geocode(address: str, limit: int = 3):
+        params = {"text": address, "size": limit, "display_type": 1}
+        return await VietMapService._get("search", params)
 
     @staticmethod
     async def reverse_geocode(lat: float, lng: float):
-        return await VietMapService._get("reverse", {"point": f"{lng},{lat}"})
-
-    @staticmethod
-    async def nearby_search(
-        lat: float,
-        lng: float,
-        radius: int = 500,
-        category: Optional[str] = None,
-        limit: int = 20,
-    ):
-        params = {"point": f"{lng},{lat}", "radius": radius, "size": limit}
-        if category:
-            params["category"] = category
-        return await VietMapService._get("nearby", params)
+        params = {
+            "point.lat": lat,
+            "point.lon": lng,
+            "api-version": "1.1",
+        }
+        return await VietMapService._get("reverse", params)
 
     @staticmethod
     async def route(
@@ -62,8 +58,15 @@ class VietMapService:
         vehicle: str = "car",
         alternatives: bool = False,
     ):
-        point_param = f"{start[1]},{start[0]}|{end[1]},{end[0]}"
-        params = {"point": point_param, "vehicle": vehicle}
-        if alternatives:
-            params["alternatives"] = "true"
+        if not BASE_URL:
+            raise RuntimeError("VIETMAP_BASE_URL is not configured")
+        p1 = f"{start[0]},{start[1]}"  # lat,lng
+        p2 = f"{end[0]},{end[1]}"  # lat,lng
+
+        params = {
+            "point": [p1, p2],
+            "vehicle": vehicle,
+            "alternatives": str(alternatives).lower(),
+        }
+
         return await VietMapService._get("route", params)

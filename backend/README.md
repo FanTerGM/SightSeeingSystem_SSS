@@ -176,27 +176,41 @@ http://localhost:8000/api
 
 Below are all **recommended VietMap APIs** you should use for a complete smart‑tourism system.
 
-## ✔ 7.1 Search API (Place Suggestion)
+## ✔ 7.1 Search API (Geocoding)
 
-**GET** `/vietmap/search?query=`
+**GET** `/vietmap/geocode`
 
 ### Example
 
 ```
-/vietmap/search?query=landmark 81
+/vietmap/geocode?address=197 Trần Phú, Phường 4, Quận 5, TP. Hồ Chí Minh
 ```
 
 ### Output
 
 ```json
-[
-  {
-    "name": "Landmark 81",
-    "address": "Binh Thanh District",
-    "lat": 10.794,
-    "lng": 106.722
-  }
-]
+{
+    "code": "OK",
+    "message": null,
+    "data": {
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                        106.67590269100003,
+                        10.759222947000069
+                    ]
+                },
+                "properties": {
+                    "layer": "",
+                    "name": "197 Trần Phú",
+                    "housenumber": "",
+                    "street": "",
+                    "distance": -1,
+                    "accuracy": "point",
+                    ...
 ```
 
 ---
@@ -207,19 +221,45 @@ Suggests places as user types.
 
 **GET** `/vietmap/autocomplete?text=`
 
+### Example
+
+```
+/vietmap/autocomplete?text=y
+```
+
 ### Output
 
 ```json
-[
-  { "label": "Ben Thanh Market", "lat": 10.77, "lng": 106.69 }
-]
+{
+    "code": "OK",
+    "message": null,
+    "data": {
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                        105.77496038800007,
+                        10.033616540000025
+                    ]
+                },
+                "properties": {
+                    "layer": "address",
+                    "name": "135h-y Đường Trần Hưng Đạo",
+                    "housenumber": "",
+                    "street": "",
+                    "distance": -1,
+                    "accuracy": "point",
+                    ...
 ```
 
 ---
 
 ## ✔ 7.3 Routing API
 
-Used to calculate travel path.
+Used to instruct the system to plan a travel path.
+FE can use this API to display the route of a trip.
 
 **POST** `/vietmap/route`
 
@@ -238,10 +278,27 @@ Used to calculate travel path.
 ### Response
 
 ```json
-[
-  { "distance": 1200, "duration": 260 },
-  { "distance": 2400, "duration": 520 }
-]
+{
+    "license": "vietmap",
+    "code": "OK",
+    "messages": null,
+    "paths": [
+        {
+            "distance": 4920.9,
+            "weight": 556.1,
+            "time": 556100,
+            "transfers": 0,
+            "points_encoded": true,
+            "bbox": [
+                106.69004,
+                10.76939,
+                106.71999,
+                10.79002
+            ],
+            "points": "uov`Aw{djSx@m@dAs@}@uAe@u@S[m@_Am@aA_A}AkAgBU_@DG@MAKEGKEM?KDiCwEg@{@[g@_AwAcAeBc@q@o@cAU]MSm@kAg@y@y@kAmAgAgEoDkB_BmAgAmFcF_GaFgDuCgAgAyGcGoAmAuBqBlBgBVUfAmAn@o@bBqBs@e@{@bA}CfDoJmHg@_@o@g@k@a@i@YmAc@e@Mo@S_FwAqDcAqAa@[OYOWQ][_@e@QSc@w@Us@K{@Ce@?o@DiAFu@PqAVyCPmATaBLIR[Bq@BaACe@KoASw@G[[[FM?OCKEIIGICO?i@sACI?SKe@OUa@e@p@_@d@Up@YhAi@u@qAy@sAy@iAy@oA",
+            "instructions": [
+                {
+                  ...
 ```
 
 ---
