@@ -19,9 +19,9 @@ class AppController {
     }
 
     async init() {
-        console.log("🚀 App đang khởi động...");
-        console.log("📍 API Base URL:", apiService.baseUrl);
-        console.log("🎭 Mock Mode:", apiService.useMock);
+        console.log("App đang khởi động...");
+        console.log("API Base URL:", apiService.baseUrl);
+        console.log("Mock Mode:", apiService.useMock);
         
         this.setupEventListeners();
         await this.loadInitialData();
@@ -29,51 +29,51 @@ class AppController {
 
     async loadInitialData() {
         try {
-            console.log("🔄 Loading initial suggestions...");
+            console.log("Loading initial suggestions...");
             
             // Strategy 1: Try searching with keyword
-            console.log("📡 Attempting API call with keyword: 'Dinh Độc Lập'");
+            console.log("Attempting API call with keyword: 'Dinh Độc Lập'");
             this.state.allSuggestions = await apiService.getSuggestions('Dinh Độc Lập');
             
-            console.log("✅ API Response received");
-            console.log("📊 Number of suggestions:", this.state.allSuggestions.length);
+            console.log("API Response received");
+            console.log("Number of suggestions:", this.state.allSuggestions.length);
             
             // If API returns no results, try without keyword
             if (this.state.allSuggestions.length === 0) {
-                console.warn("⚠️ No results with keyword, trying empty search...");
+                console.warn("No results with keyword, trying empty search...");
                 this.state.allSuggestions = await apiService.getSuggestions('');
             }
             
             // If still no results, fall back to mock
             if (this.state.allSuggestions.length === 0) {
-                console.warn("⚠️ No results from API. Falling back to mock data...");
+                console.warn("No results from API. Falling back to mock data...");
                 apiService.useMock = true;
                 this.state.allSuggestions = await apiService.getSuggestions();
-                console.log("📊 Mock data loaded:", this.state.allSuggestions.length, "items");
+                console.log("Mock data loaded:", this.state.allSuggestions.length, "items");
             }
             
             // Update UI
             this.updateSuggestionUI();
-            console.log("🗺️ Drawing", this.state.allSuggestions.length, "markers on map...");
+            console.log("Drawing", this.state.allSuggestions.length, "markers on map...");
             this.map.drawMarkers(this.state.allSuggestions);
-            console.log("✅ Initialization complete!");
+            console.log("Initialization complete!");
             
         } catch (error) {
-            console.error("❌ Error loading data:", error);
-            console.error("📋 Error details:", error.message);
-            console.error("🔍 Stack trace:", error.stack);
+            console.error("Error loading data:", error);
+            console.error("Error details:", error.message);
+            console.error("Stack trace:", error.stack);
             
             // Ultimate fallback to mock data
-            console.log("🆘 Activating emergency fallback to mock data...");
+            console.log("Activating emergency fallback to mock data...");
             apiService.useMock = true;
             
             try {
                 this.state.allSuggestions = await apiService.getSuggestions();
-                console.log("✅ Mock data loaded successfully:", this.state.allSuggestions.length, "items");
+                console.log("Mock data loaded successfully:", this.state.allSuggestions.length, "items");
                 this.updateSuggestionUI();
                 this.map.drawMarkers(this.state.allSuggestions);
             } catch (mockError) {
-                console.error("💥 Even mock data failed! This should never happen:", mockError);
+                console.error("Even mock data failed! This should never happen:", mockError);
                 alert("Có lỗi nghiêm trọng khi khởi động ứng dụng. Vui lòng kiểm tra console.");
             }
         }
@@ -81,7 +81,7 @@ class AppController {
 
     updateSuggestionUI() {
         const currentRouteIds = this.state.route.map(item => item.id);
-        console.log("🎨 Updating suggestion UI. Excluding", currentRouteIds.length, "IDs");
+        console.log("Updating suggestion UI. Excluding", currentRouteIds.length, "IDs");
         this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
     }
 
@@ -89,11 +89,11 @@ class AppController {
     addLocationToRoute(locationData, shouldRefreshMap = true) {
         const exists = this.state.route.find(i => i.id === locationData.id);
         if (exists) {
-            console.log("⚠️ Location already in route:", locationData.name);
+            console.log("Location already in route:", locationData.name);
             return;
         }
 
-        console.log("➕ Adding location to route:", locationData.name);
+        console.log("Adding location to route:", locationData.name);
         this.state.route.push(locationData);
         this.ui.addStepItem(locationData, (deletedItem) => {
             this.removeLocation(deletedItem); 
@@ -105,39 +105,39 @@ class AppController {
     }
 
     removeLocation(locationData) {
-        console.log("➖ Removing location from route:", locationData.name);
+        console.log("Removing location from route:", locationData.name);
         this.state.route = this.state.route.filter(item => item.id !== locationData.id);
         this.updateSuggestionUI();
         this.refreshMapState();
     }
 
     async refreshMapState() {
-        console.log("🔄 Refreshing map. Route has", this.state.route.length, "locations");
+        console.log("Refreshing map. Route has", this.state.route.length, "locations");
         const updateBtn = document.getElementById('update-map-btn');
         if (updateBtn) this.ui.setLoading(updateBtn, true);
 
         try {
             // Always draw markers for current route
             this.map.drawMarkers(this.state.route);
-            console.log("✅ Markers drawn for", this.state.route.length, "locations");
+            console.log("Markers drawn for", this.state.route.length, "locations");
             
             // Calculate route if we have 2+ locations
             if (this.state.route.length >= 2) {
-                console.log("🛣️ Calculating route between", this.state.route.length, "points...");
+                console.log("Calculating route between", this.state.route.length, "points...");
                 const routeResult = await apiService.calculateRoute(this.state.route);
                 
                 if (routeResult && routeResult.path && routeResult.path.length > 0) {
-                    console.log("✅ Route calculated. Path has", routeResult.path.length, "points");
-                    console.log("📏 Distance:", routeResult.distance, "| Duration:", routeResult.duration);
+                    console.log("Route calculated. Path has", routeResult.path.length, "points");
+                    console.log("Distance:", routeResult.distance, "| Duration:", routeResult.duration);
                     this.map.drawPolyline(routeResult.path);
                 } else {
-                    console.warn("⚠️ No route path returned from API");
+                    console.warn("No route path returned from API");
                 }
             } else {
-                console.log("ℹ️ Need at least 2 locations to calculate route");
+                console.log("ℹNeed at least 2 locations to calculate route");
             }
         } catch (err) {
-            console.error("❌ Error refreshing map:", err);
+            console.error("Error refreshing map:", err);
             alert("Không thể tính toán lộ trình. Vui lòng thử lại.");
         } finally {
             if (updateBtn) setTimeout(() => this.ui.setLoading(updateBtn, false), 500);
@@ -159,7 +159,7 @@ class AppController {
         const editBtn = document.getElementById('edit-route-btn');
         if(editBtn) {
             editBtn.onclick = () => {
-                console.log("↩️ Returning to builder view");
+                console.log("↩Returning to builder view");
                 this.ui.navigateTo('builder');
                 this.map.clearRoute(); 
                 this.state.route = []; 
@@ -221,10 +221,10 @@ class AppController {
                 timeout = setTimeout(async () => {
                     try {
                         this.state.allSuggestions = await apiService.getSuggestions(keyword);
-                        console.log("📊 Search results:", this.state.allSuggestions.length);
+                        console.log("Search results:", this.state.allSuggestions.length);
                         this.updateSuggestionUI();
                     } catch (error) {
-                        console.error("❌ Search error:", error);
+                        console.error("Search error:", error);
                     }
                 }, 500); 
             });
@@ -233,7 +233,7 @@ class AppController {
 
     async handleFormSubmit(e) {
         e.preventDefault();
-        console.log("📝 Form submitted");
+        console.log("Form submitted");
         
         const submitBtn = e.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
@@ -249,14 +249,14 @@ class AppController {
                 return;
             }
             
-            console.log("🔍 Looking up locations:", { start: startName, end: endName });
+            console.log("Looking up locations:", { start: startName, end: endName });
 
             const [startData, endData] = await Promise.all([
                 apiService.getLocationDetails(startName),
                 apiService.getLocationDetails(endName)
             ]);
 
-            console.log("✅ Found locations:", { 
+            console.log("Found locations:", { 
                 start: `${startData.name} (${startData.lat}, ${startData.lng})`, 
                 end: `${endData.name} (${endData.lat}, ${endData.lng})` 
             });
@@ -271,7 +271,7 @@ class AppController {
             await this.refreshMapState();
 
         } catch (err) {
-            console.error("❌ Form submission error:", err);
+            console.error("Form submission error:", err);
             alert("Có lỗi khi tìm địa điểm. Vui lòng kiểm tra tên địa điểm và thử lại!");
         } finally {
             submitBtn.innerHTML = originalText;
@@ -298,7 +298,7 @@ class AppController {
             const rawData = e.dataTransfer.getData('application/json');
             if (rawData) {
                 const data = JSON.parse(rawData);
-                console.log("🎯 Dropped location:", data.name);
+                console.log("Dropped location:", data.name);
                 this.addLocationToRoute(data);
             }
         });
@@ -331,7 +331,7 @@ class AppController {
             const txt = input.value.trim();
             if (!txt) return;
             
-            console.log("💬 Sending chat message:", txt);
+            console.log("Sending chat message:", txt);
             
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
@@ -341,12 +341,12 @@ class AppController {
 
             try {
                 const chatResult = await apiService.chat(txt);
-                console.log("🤖 AI response:", chatResult);
+                console.log("AI response:", chatResult);
                 
                 this.ui.addChatMessage(chatResult.reply, 'ai');
                 
                 if (chatResult.selected_locations && chatResult.selected_locations.length > 0) {
-                    console.log("📍 AI suggested", chatResult.selected_locations.length, "locations");
+                    console.log("AI suggested", chatResult.selected_locations.length, "locations");
                     this.state.allSuggestions = chatResult.selected_locations; 
                     this.updateSuggestionUI();
                     
@@ -361,7 +361,7 @@ class AppController {
                 
             } catch (error) {
                 this.ui.addChatMessage("Đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.", 'ai');
-                console.error("❌ Chatbot Error:", error);
+                console.error("Chatbot Error:", error);
             } finally {
                 this.ui.showTypingIndicator(false);
                 input.disabled = false;

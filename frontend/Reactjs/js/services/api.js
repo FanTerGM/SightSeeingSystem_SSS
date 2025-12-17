@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 
-// --- MOCK DATA (Giữ nguyên để test) ---
+// --- MOCK DATA ---
 const MOCK_DB = [
     {
         id: 1,
@@ -69,16 +69,13 @@ class ApiService {
         this.baseUrl = CONFIG.API_BASE_URL;
         this.useMock = CONFIG.USE_MOCK_DATA;
 
-        console.log("🛠️ API Service khởi tạo. Chế độ Mock:", this.useMock);
+        console.log("API Service khởi tạo. Chế độ Mock:", this.useMock);
     }
 
     _mockDelay(data) {
         return new Promise(resolve => setTimeout(() => resolve(data), CONFIG.MOCK_DELAY));
     }
 
-    /**
-     * Helper POST request
-     */
     async _apiPost(path, body) {
         const url = `${this.baseUrl}${path}`;
         const headers = {
@@ -96,16 +93,12 @@ class ApiService {
         });
 
         if (!response.ok) {
-            // Đọc text lỗi để dễ debug nếu server trả HTML thay vì JSON
             const errText = await response.text();
             throw new Error(`HTTP error ${response.status}: ${errText}`);
         }
         return await response.json();
     }
 
-    /**
-     * Helper GET request
-     */
     async _apiGet(path) {
         const url = `${this.baseUrl}${path}`;
         const headers = {};
@@ -119,7 +112,7 @@ class ApiService {
         return await response.json();
     }
 
-    // --- ADAPTER: CẦU NỐI DỮ LIỆU ---
+    // --- ADAPTER: CẤU NỐI DỮ LIỆU ---
     _mapApiToApp(item) {
         // Case 1: VietMap GeoJSON Feature
         if (item && item.type === "Feature" && item.geometry && Array.isArray(item.geometry.coordinates)) {
@@ -154,7 +147,7 @@ class ApiService {
             };
         }
 
-        // Case 2: your old formats (keep as fallback)
+        // Case 2: Fallback formats
         const displayName = item.name_vi || item.name || (item.display_name ? item.display_name.split(',')[0] : 'Địa điểm chưa đặt tên');
         const lat = item.coordinates ? item.coordinates.lat : item.lat;
         const lng = item.coordinates ? item.coordinates.lng : item.lon || item.lng;
@@ -176,9 +169,13 @@ class ApiService {
         };
     }
 
-
     _decodeVietmapPolyline(encoded) {
-        if (!encoded || typeof encoded !== "string") return [];
+        if (!encoded || typeof encoded !== "string") {
+            console.warn("Invalid polyline string:", encoded);
+            return [];
+        }
+
+        console.log("Decoding polyline, length:", encoded.length);
 
         let index = 0, lat = 0, lng = 0;
         const coords = [];
@@ -186,6 +183,8 @@ class ApiService {
 
         while (index < len) {
             let b, shift = 0, result = 0;
+
+            // Decode latitude
             do {
                 b = encoded.charCodeAt(index++) - 63;
                 result |= (b & 0x1f) << shift;
@@ -194,6 +193,7 @@ class ApiService {
             const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
             lat += dlat;
 
+            // Decode longitude
             shift = 0;
             result = 0;
             do {
@@ -204,12 +204,22 @@ class ApiService {
             const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
             lng += dlng;
 
-            coords.push([lat / 1e5, lng / 1e5]);
+            // CRITICAL: VietMap polyline is already in [lat, lng] order
+            // Divide by 1e5 to get actual coordinates
+            const decodedLat = lat / 1e5;
+            const decodedLng = lng / 1e5;
+
+            coords.push([decodedLat, decodedLng]);
+        }
+
+        console.log(`Decoded ${coords.length} coordinates`);
+        if (coords.length > 0) {
+            console.log("First point:", coords[0]);
+            console.log("Last point:", coords[coords.length - 1]);
         }
 
         return coords;
     }
-
     _getPlaceImage(name, type) {
         const n = (name || '').toLowerCase();
         if (n.includes('coffee') || n.includes('cafe')) return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=300&q=80';
@@ -230,7 +240,7 @@ class ApiService {
         try {
             const path = `/vietmap/autocomplete?text=${encodeURIComponent(keyword)}`;
             const data = await this._apiGet(path);
-            
+
             const features = (data && data.data && Array.isArray(data.data.features)) ? data.data.features
                 : (Array.isArray(data) ? data : []);
 
@@ -241,11 +251,24 @@ class ApiService {
                 return [];
             }
 
-            return features.map(item => this._mapApiToApp(item));
+            // Filter out items where the layer is "street"
+            const filteredFeatures = features.filter(item => {
+                // Check if properties exist and check the layer
+                if (item.properties && item.properties.layer === 'street') {
+                    return false;
+                }
+                // Fallback check for flat objects
+                if (item.type === 'street') {
+                    return false;
+                }
+                return true;
+            });
+
+            return filteredFeatures.map(item => this._mapApiToApp(item));
 
         } catch (error) {
             console.error("Lỗi getSuggestions:", error);
-            return []; // Trả về rỗng thay vì Mock để biết là lỗi thật
+            return [];
         }
     }
 
@@ -268,7 +291,6 @@ class ApiService {
             console.error("Lỗi getLocationDetails:", e);
         }
 
-        // Trả về dữ liệu giả nếu không tìm thấy để không crash map
         return this._mapApiToApp({
             name: name,
             display_name: 'Không tìm thấy thông tin',
@@ -277,55 +299,169 @@ class ApiService {
         });
     }
 
-    // --- API 3: TÍNH LỘ TRÌNH ---
+    // --- API 3: TÍNH LỘ TRÌNH (FIXED FOR MULTIPLE WAYPOINTS) ---
     async calculateRoute(routeList) {
         if (!routeList || routeList.length < 2) return null;
 
         if (this.useMock) {
-            // Mock logic cũ...
+            // Mock: Create a path through all points
             const path = [];
-            const start = routeList[0];
-            const end = routeList[routeList.length - 1];
-            path.push([start.lat, start.lng]);
-            path.push([(start.lat + end.lat) / 2, (start.lng + end.lng) / 2]);
-            path.push([end.lat, end.lng]);
-            return this._mockDelay({ success: true, distance: 'Mock Dist', duration: 'Mock Time', path: path });
+            routeList.forEach((point, index) => {
+                path.push([point.lat, point.lng]);
+                if (index < routeList.length - 1) {
+                    const next = routeList[index + 1];
+                    // Add 5 intermediate points for smoother mock path
+                    for (let i = 1; i <= 5; i++) {
+                        path.push([
+                            point.lat + (next.lat - point.lat) * (i / 6),
+                            point.lng + (next.lng - point.lng) * (i / 6)
+                        ]);
+                    }
+                }
+            });
+            return this._mockDelay({
+                success: true,
+                distance: `${(routeList.length * 2.5).toFixed(1)} km`,
+                duration: `${routeList.length * 15} phút`,
+                path: path
+            });
         }
 
         try {
-            const start = routeList[0];
-            const end = routeList[routeList.length - 1];
+            // For 2 points: simple route
+            if (routeList.length === 2) {
+                const start = routeList[0];
+                const end = routeList[1];
 
-            const payload = {
-                start_lat: start.lat,
-                start_lng: start.lng,
-                end_lat: end.lat,
-                end_lng: end.lng,
-                vehicle: "car"
-            };
+                console.log("Calculating route from:");
+                console.log("  Start:", start.name, `(${start.lat}, ${start.lng})`);
+                console.log("  End:", end.name, `(${end.lat}, ${end.lng})`);
 
-            const routeResult = await this._apiPost("/vietmap/route", payload);
-            const firstRoute = Array.isArray(routeResult) ? routeResult[0] : routeResult;
+                const payload = {
+                    start_lat: start.lat,
+                    start_lng: start.lng,
+                    end_lat: end.lat,
+                    end_lng: end.lng,
+                    vehicle: "car"
+                };
 
-            const p0 = firstRoute?.paths?.[0];
-            const decoded = this._decodeVietmapPolyline(p0?.points);
+                console.log("Sending route request:", payload);
+                const routeResult = await this._apiPost("/vietmap/route", payload);
+                console.log("Raw API response:", routeResult);
+
+                const firstRoute = Array.isArray(routeResult) ? routeResult[0] : routeResult;
+                console.log("First route object:", firstRoute);
+
+                const p0 = firstRoute?.paths?.[0];
+                console.log("Path data:", p0);
+
+                if (!p0 || !p0.points) {
+                    console.error("No points data in API response!");
+                    console.log("Full response structure:", JSON.stringify(routeResult, null, 2));
+                    return null;
+                }
+
+                console.log("Encoded polyline:", p0.points.substring(0, 50) + "...");
+                const decoded = this._decodeVietmapPolyline(p0.points);
+
+                if (decoded.length === 0) {
+                    console.error("Polyline decode failed!");
+                    return null;
+                }
+
+                return {
+                    success: true,
+                    distance: p0?.distance ?? "N/A",
+                    duration: p0?.time ?? "N/A",
+                    path: decoded
+                };
+            }
+
+            // For 3+ points: Calculate route between each consecutive pair
+            console.log("Calculating multi-segment route through", routeList.length, "points");
+
+            let fullPath = [];
+            let totalDistance = 0;
+            let totalDuration = 0;
+
+            for (let i = 0; i < routeList.length - 1; i++) {
+                const start = routeList[i];
+                const end = routeList[i + 1];
+
+                console.log(`\nSegment ${i + 1}/${routeList.length - 1}:`);
+                console.log(`  From: ${start.name} (${start.lat}, ${start.lng})`);
+                console.log(`  To: ${end.name} (${end.lat}, ${end.lng})`);
+
+                const payload = {
+                    start_lat: start.lat,
+                    start_lng: start.lng,
+                    end_lat: end.lat,
+                    end_lng: end.lng,
+                    vehicle: "car"
+                };
+
+                try {
+                    const segmentResult = await this._apiPost("/vietmap/route", payload);
+                    const firstRoute = Array.isArray(segmentResult) ? segmentResult[0] : segmentResult;
+                    const p0 = firstRoute?.paths?.[0];
+
+                    if (p0 && p0.points) {
+                        console.log(`Decoding segment ${i + 1}...`);
+                        const decoded = this._decodeVietmapPolyline(p0.points);
+
+                        if (decoded.length === 0) {
+                            console.warn(`  Segment ${i + 1} decode failed!`);
+                            continue;
+                        }
+
+                        // Add segment path to full path
+                        // Skip first point of subsequent segments to avoid duplicates
+                        if (i === 0) {
+                            fullPath = fullPath.concat(decoded);
+                            console.log(`    Added ${decoded.length} points (first segment)`);
+                        } else {
+                            const addedPoints = decoded.slice(1);
+                            fullPath = fullPath.concat(addedPoints);
+                            console.log(`    Added ${addedPoints.length} points (skipped duplicate)`);
+                        }
+
+                        // Accumulate distance and duration
+                        totalDistance += (p0.distance || 0);
+                        totalDuration += (p0.time || 0);
+
+                    } else {
+                        console.warn(`    Segment ${i + 1} failed - no path data`);
+                        console.log("    Response:", segmentResult);
+                    }
+                } catch (segmentError) {
+                    console.error(`    Error calculating segment ${i + 1}:`, segmentError);
+                }
+            }
+
+            if (fullPath.length === 0) {
+                console.error("No valid path segments found!");
+                return null;
+            }
+
+            console.log(`\nMulti-segment route complete:`);
+            console.log(`  Total points: ${fullPath.length}`);
+            console.log(`  Total distance: ${totalDistance}m (${(totalDistance / 1000).toFixed(1)}km)`);
+            console.log(`  Total duration: ${totalDuration}ms (${Math.round(totalDuration / 60000)}min)`);
 
             return {
                 success: true,
-                distance: p0?.distance ?? "N/A",
-                duration: p0?.time ?? "N/A",
-                path: decoded
+                distance: totalDistance > 0 ? `${(totalDistance / 1000).toFixed(1)} km` : "N/A",
+                duration: totalDuration > 0 ? `${Math.round(totalDuration / 60000)} phút` : "N/A",
+                path: fullPath
             };
-
-
 
         } catch (error) {
             console.error("Lỗi calculateRoute:", error);
+            console.error("Stack:", error.stack);
             return null;
         }
     }
-
-    // --- API 4: CHATBOT (Tách /chat và /parse) ---
+    // --- API 4: CHATBOT ---
     async chat(message, userId = null) {
         console.log(`[AI Chat] Request: "${message}"`);
 
@@ -338,7 +474,6 @@ class ApiService {
         }
         try {
             const payload = { message, user_id: userId };
-
             const data = await this._apiPost("/ai/chat-router", payload);
 
             return {
