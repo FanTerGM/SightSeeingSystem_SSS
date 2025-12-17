@@ -231,7 +231,7 @@ class AppController {
         }
     }
 
-    async handleFormSubmit(e) {
+   async handleFormSubmit(e) {
         e.preventDefault();
         console.log("Form submitted");
         
@@ -250,6 +250,10 @@ class AppController {
             }
             
             console.log("Looking up locations:", { start: startName, end: endName });
+            const startName = document.getElementById('start-point').value;
+            const endName = document.getElementById('end-point').value;
+            // 1. Lấy số lượng điểm ghé từ input
+            const waypointCount = parseInt(document.getElementById('waypointCount').value) || 0;
 
             const [startData, endData] = await Promise.all([
                 apiService.getLocationDetails(startName),
@@ -264,7 +268,34 @@ class AppController {
             this.state.route = [];
             document.getElementById('route-steps-container').innerHTML = '';
 
+            // 2. Thêm điểm xuất phát
             this.addLocationToRoute(startData, false);
+
+            // 3. LOGIC XỬ LÝ ĐIỂM GHÉ (WAYPOINTS)
+            if (waypointCount > 0 && this.state.allSuggestions.length > 0) {
+                // Lọc bỏ điểm trùng với điểm đi/đến để tránh trùng lặp
+                const availablePoints = this.state.allSuggestions.filter(item => 
+                    item.id !== startData.id && item.id !== endData.id
+                );
+
+                // Xáo trộn danh sách ngẫu nhiên (hoặc bạn có thể sort theo rating/khoảng cách nếu có data)
+                const shuffled = availablePoints.sort(() => 0.5 - Math.random());
+
+                // Lấy n điểm đầu tiên
+                const selectedWaypoints = shuffled.slice(0, waypointCount);
+
+                // Thêm từng điểm vào lộ trình
+                selectedWaypoints.forEach(point => {
+                    this.addLocationToRoute(point, false);
+                });
+                
+                // Thông báo nhỏ (tuỳ chọn)
+                if (selectedWaypoints.length < waypointCount) {
+                    console.warn(`Chỉ tìm thấy ${selectedWaypoints.length} điểm phù hợp thay vì ${waypointCount}`);
+                }
+            }
+
+            // 4. Thêm điểm kết thúc
             this.addLocationToRoute(endData, false);
 
             this.ui.navigateTo('summary');
