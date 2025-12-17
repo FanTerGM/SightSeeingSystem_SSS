@@ -11,6 +11,7 @@
 </head>
 <body style="position: fixed; width: 100%; height: 100%; overflow: hidden;">
 
+    <!-- Chat Widget -->
     <div id="chat-widget">
         <div class="chat-header">
             <i class="fas fa-robot" style="font-size: 1.5rem; color: var(--accent-color);"></i>
@@ -33,8 +34,8 @@
         <i class="fas fa-times" style="display:none;"></i>
     </button>
 
+    <!-- Control Panel -->
     <div id="control-panel">
-        
         <div id="panel-header">
             <div style="flex: 1;">
                 <h2><i class="fas fa-paper-plane"></i> Smart Travel</h2>
@@ -43,6 +44,7 @@
         </div>
 
         <div id="panel-content">
+            <!-- Route Builder Form -->
             <div id="route-builder">
                 <form id="route-form">
                     <div class="input-group">
@@ -108,6 +110,7 @@
                 </form>
             </div>
 
+            <!-- Route Summary -->
             <div id="route-summary" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:10px; border-bottom:1px solid #eee;">
                     <h3 style="margin:0; font-size:1rem; font-weight:700;">Lộ trình chi tiết</h3>
@@ -126,6 +129,7 @@
         </div>
     </div>
 
+    <!-- Suggestion Panel -->
     <div id="suggestion-panel" class="is-visible">
         <div id="suggestion-header">
             <button id="toggle-suggestion-btn" title="Thu gọn"><i class="fas fa-chevron-left"></i></button>
@@ -140,16 +144,20 @@
         <div id="suggestion-list" style="padding:0 20px 20px 20px; overflow-y:auto; flex:1;"></div>
     </div>
 
+    <!-- Map Container -->
     <div id="big-map"></div>
 
+    <!-- Map Toggle Button (Mobile) -->
     <button id="mobile-map-toggle" title="Mở rộng bản đồ">
         <i class="fas fa-expand-arrows-alt"></i>
     </button>
 
+    <!-- Floating Back Button -->
     <button id="floating-back-btn" title="Quay lại nhập liệu">
         <i class="fas fa-arrow-left"></i>
     </button>
 
+    <!-- Details Panel -->
     <div id="details-panel">
         <div id="details-header">
             <h2>Thông tin địa điểm</h2>
@@ -158,9 +166,14 @@
         <div id="details-content" style="padding:24px; overflow-y:auto; flex:1;"></div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./env.js"></script>
+    
+    <!-- ONLY LOAD main.js - Remove old scripts -->
     <script type="module" src="./js/main.js"></script>
+    
+    <!-- Mobile Drag & Drop Support -->
     <script src="https://unpkg.com/mobile-drag-drop/index.min.js"></script>
     <script>
         MobileDragDrop.polyfill({
