@@ -4,11 +4,10 @@ from typing import Tuple, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 VIETMAP_API_KEY = os.getenv("VIETMAP_API_KEY")
 BASE_URL = os.getenv("VIETMAP_BASE_URL")
-
 
 class VietMapService:
     """Wrapper for VietMap APIs using Async HTTPX."""
@@ -48,6 +47,13 @@ class VietMapService:
                 "cats" : tourist_categories,
             },
         )
+
+    @staticmethod
+    async def getPlace(place_id: str):
+        params = {
+            "refid": place_id,
+        }
+        return await VietMapService._get("place/v4", params)
 
     @staticmethod
     async def geocode(query: str, limit: int = 3):

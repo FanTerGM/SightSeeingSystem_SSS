@@ -114,7 +114,55 @@ class ApiService {
 
     // --- ADAPTER: CẤU NỐI DỮ LIỆU ---
     _mapApiToApp(item) {
-        // Case 1: VietMap GeoJSON Feature
+        // Case 1: VietMap autocomplete result with ref_id (NO coordinates yet)
+        if (item && item.ref_id && (item.lat == null || item.lng == null)) {
+            const displayName = item.name || item.display || "Địa điểm chưa đặt tên";
+            const address = item.address || item.display || "Đang cập nhật địa chỉ";
+            
+            return {
+                id: item.ref_id, // Use ref_id as ID
+                ref_id: item.ref_id, // Store ref_id for later fetching
+                name: displayName,
+                type: item.categories?.[0] || "Địa điểm",
+                address,
+                price: "---",
+                status: "Mở cửa",
+                isOpen: true,
+                lat: null, // Mark as needing coordinates
+                lng: null,
+                needsDetails: true, // Flag to fetch details later
+                temp: "30°C",
+                weatherIcon: "fa-sun",
+                img: this._getPlaceImage(displayName, item.categories?.[0]),
+                desc: item.display || "Chưa có mô tả chi tiết."
+            };
+        }
+        
+        // Case 2: VietMap place details response (HAS coordinates)
+        if (item && item.lat != null && item.lng != null) {
+            const displayName = item.name || item.display || "Địa điểm chưa đặt tên";
+            const address = item.address || item.display || "Đang cập nhật địa chỉ";
+            
+            return {
+                id: item.ref_id || item.place_id || Date.now() + Math.random(),
+                ref_id: item.ref_id || item.place_id,
+                name: displayName,
+                type: item.categories?.[0] || "Địa điểm",
+                address,
+                price: "---",
+                status: "Mở cửa",
+                isOpen: true,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lng),
+                needsDetails: false,
+                temp: "30°C",
+                weatherIcon: "fa-sun",
+                img: this._getPlaceImage(displayName, item.categories?.[0]),
+                desc: item.display || "Chưa có mô tả chi tiết."
+            };
+        }
+
+        // Case 3: VietMap GeoJSON Feature
         if (item && item.type === "Feature" && item.geometry && Array.isArray(item.geometry.coordinates)) {
             const coords = item.geometry.coordinates;
             const lng = Number(coords[0]);
@@ -140,6 +188,7 @@ class ApiService {
                 isOpen: true,
                 lat,
                 lng,
+                needsDetails: false,
                 temp: "30°C",
                 weatherIcon: "fa-sun",
                 img: this._getPlaceImage(displayName, p.layer),
@@ -147,7 +196,7 @@ class ApiService {
             };
         }
 
-        // Case 2: Fallback formats
+        // Case 4: Fallback formats
         const displayName = item.name_vi || item.name || (item.display_name ? item.display_name.split(',')[0] : 'Địa điểm chưa đặt tên');
         const lat = item.coordinates ? item.coordinates.lat : item.lat;
         const lng = item.coordinates ? item.coordinates.lng : item.lon || item.lng;
@@ -160,8 +209,9 @@ class ApiService {
             price: item.price || '---',
             status: item.status || 'Mở cửa',
             isOpen: true,
-            lat: parseFloat(lat),
-            lng: parseFloat(lng),
+            lat: lat ? parseFloat(lat) : null,
+            lng: lng ? parseFloat(lng) : null,
+            needsDetails: (lat == null || lng == null),
             temp: '30°C',
             weatherIcon: 'fa-sun',
             img: item.img || this._getPlaceImage(displayName, item.type),
@@ -241,30 +291,24 @@ class ApiService {
             const path = `/vietmap/autocomplete?text=${encodeURIComponent(keyword)}`;
             const data = await this._apiGet(path);
 
-            const features = (data && data.data && Array.isArray(data.data.features)) ? data.data.features
-                : (Array.isArray(data) ? data : []);
+            // Handle the response - might be nested
+            let features = [];
+            if (Array.isArray(data)) {
+                features = data;
+            } else if (data && Array.isArray(data.data)) {
+                features = data.data;
+            } else if (data && data.data && Array.isArray(data.data.features)) {
+                features = data.data.features;
+            }
 
-            console.log("[geocode] features length =", Array.isArray(features) ? features.length : 0);
+            console.log("[autocomplete] features length =", features.length);
 
-            if (!Array.isArray(features) || features.length === 0) {
-                console.warn("API Search empty/unknown shape:", data);
+            if (features.length === 0) {
+                console.warn("API autocomplete empty:", data);
                 return [];
             }
 
-            // Filter out items where the layer is "street"
-            const filteredFeatures = features.filter(item => {
-                // Check if properties exist and check the layer
-                if (item.properties && item.properties.layer === 'street') {
-                    return false;
-                }
-                // Fallback check for flat objects
-                if (item.type === 'street') {
-                    return false;
-                }
-                return true;
-            });
-
-            return filteredFeatures.map(item => this._mapApiToApp(item));
+            return features.map(item => this._mapApiToApp(item));
 
         } catch (error) {
             console.error("Lỗi getSuggestions:", error);
@@ -297,6 +341,22 @@ class ApiService {
             lat: 10.7769,
             lon: 106.7009
         });
+    }
+
+    // In api.js, add this method:
+    async getPlaceDetails(refId) {
+        if (this.useMock) {
+            return this._mockDelay({ lat: 10.77, lng: 106.69 });
+        }
+        
+        try {
+            const path = `/vietmap/getPlace?place_id=${encodeURIComponent(refId)}`;
+            const data = await this._apiGet(path);
+            return data;
+        } catch (error) {
+            console.error("Error getPlaceDetails:", error);
+            throw error;
+        }
     }
 
     // --- API 3: TÍNH LỘ TRÌNH (FIXED FOR MULTIPLE WAYPOINTS) ---

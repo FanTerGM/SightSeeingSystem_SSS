@@ -30,6 +30,14 @@ async def autocomplete(text: str = Query(..., min_length=1), limit: int = 5):
         return await VietMapService.autocomplete(text, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"VietMap autocomplete error: {e}")
+    
+@router.get("/getPlace")
+async def get_place(place_id: str = Query(..., min_length=1)):
+    _ensure_key()
+    try:
+        return await VietMapService.getPlace(place_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"VietMap getPlace error: {e}")
 
 @router.post("/route")
 async def route(request: RouteRequest):
