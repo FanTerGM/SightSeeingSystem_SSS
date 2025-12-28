@@ -57,15 +57,20 @@
                         </div>
                     </div>
 
-                    <div class="row-group">
-                        <div class="input-group">
-                            <label>Thời gian</label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-clock"></i>
-                                <input type="text" id="trip-duration" placeholder="VD: 4h">
+                    <div class="row-group" style="align-items: flex-start;">
+                         <div class="input-group" style="flex: 1.2;">
+                            <label>Bán kính tìm kiếm</label>
+                            <div class="budget-wrapper"> <div class="values">
+                                    <span id="radius-display">20</span> km
+                                </div>
+                                <div class="slider-container">
+                                    <div class="slider-track" id="radius-track"></div>
+                                    <input type="range" min="1" max="100" value="20" id="radius-slider">
+                                </div>
                             </div>
                         </div>
-                        <div class="input-group">
+
+                        <div class="input-group" style="flex: 0.8;">
                             <label>Phương tiện</label>
                             <div class="input-wrapper">
                                 <i class="fas fa-car-side"></i>
@@ -111,7 +116,7 @@
             <div id="route-summary" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:10px; border-bottom:1px solid #eee;">
                     <h3 style="margin:0; font-size:1rem; font-weight:700;">Lộ trình chi tiết</h3>
-                    <button id="reopen-suggestion-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
+                    <button id="reopen-suggestion-btn" class="add-step-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
                 </div>
                 
                 <div id="route-steps-container"></div>

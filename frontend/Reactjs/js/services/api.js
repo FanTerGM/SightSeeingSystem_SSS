@@ -145,22 +145,30 @@ class ApiService {
     }
 
     // --- API 1: TÌM KIẾM ---
-    async getSuggestions(keyword = '') {
+   async getSuggestions(keyword = '', lat = null, lng = null) {
         if (this.useMock) {
             const results = keyword ? MOCK_DB.filter(item => item.name.toLowerCase().includes(keyword.toLowerCase())) : MOCK_DB;
             return this._mockDelay(results);
         }
         try {
-            const path = `/vietmap/autocomplete?text=${encodeURIComponent(keyword)}`;
+            // 🔥 NÂNG CẤP URL: Thêm tham số focus để ưu tiên tìm gần 🔥
+            let path = `/vietmap/autocomplete?text=${encodeURIComponent(keyword)}`;
+            
+            // Nếu có tọa độ người dùng, gửi kèm để API biết đường mà tìm loanh quanh đó
+            if (lat && lng) {
+                path += `&focus.point.lat=${lat}&focus.point.lon=${lng}`;
+            }
+
             const data = await this._apiGet(path);
             const features = (data && data.data && Array.isArray(data.data.features)) ? data.data.features : (Array.isArray(data) ? data : []);
             
             if (!Array.isArray(features) || features.length === 0) return [];
 
+            // Lọc bớt rác (nhưng đừng lọc gắt quá kẻo mất Bùi Viện)
             const filteredFeatures = features.filter(item => {
-                if (item.properties && item.properties.layer === 'street') return false;
-                if (item.type === 'street') return false;
-                return true;
+                // Chỉ chặn những cái chắc chắn là rác
+                if (item.properties && item.properties.layer === 'venue') return true; // venue là địa điểm, lấy luôn
+                return true; 
             });
             return filteredFeatures.map(item => this._mapApiToApp(item));
         } catch (error) {

@@ -73,53 +73,44 @@ export class UIModule {
     }
 
     // --- CẬP NHẬT: DANH SÁCH GỢI Ý (ĐÃ SỬA LỖI LẶP ĐỊA CHỈ) ---
-    renderSuggestionList(dataList, excludeIds = []) {
-        const container = this.dom.lists.suggestions;
-        container.innerHTML = "";
+    // modules/ui.js
 
-        const filteredList = dataList.filter(item => !excludeIds.includes(item.id));
+    renderSuggestionList(places, excludeIds = []) {
+        const container = document.getElementById('suggestion-list');
+        if (!container) return;
+        container.innerHTML = '';
 
-        if (filteredList.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:#888; padding:20px; font-size:0.9rem;">Không tìm thấy địa điểm nào phù hợp!</div>';
-            return;
-        }
+        places.forEach(item => {
+            if (excludeIds.includes(item.id)) return;
 
-        filteredList.forEach(item => {
-            const el = document.createElement('div');
-            el.className = 'l-card';
-            el.draggable = true;
-            el.style.touchAction = "pan-y";
-            
-            // Xử lý địa chỉ sạch sẽ trước khi render
-            const cleanAddr = this._cleanAddress(item.name, item.address);
+            const card = document.createElement('div');
+            card.className = 'l-card';
+            card.setAttribute('data-id', item.id);
 
-            el.innerHTML = `
-                <img src="${item.img || CONFIG.DEFAULT_IMAGE}" alt="${item.name}" onerror="this.src='${CONFIG.DEFAULT_IMAGE}'" style="pointer-events: none;"> 
-                <div style="flex:1; pointer-events: none; overflow: hidden;">
-                    <h4 style="margin:0; font-size:0.95rem; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</h4>
-                    <p style="margin:4px 0 0 0; font-size:0.8rem; color:#666; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.3;">
-                        ${cleanAddr || 'Việt Nam'}
-                    </p>
-                </div>
-                <i class="fas fa-plus-circle" style="color:var(--primary-color); font-size:1.2rem;"></i>
-            `;
-            
-            el.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('application/json', JSON.stringify(item));
-                e.dataTransfer.effectAllowed = "copy";
-            });
+            const distDisplay = item.distance ? `${item.distance.toFixed(1)} km` : '-- km';
+            const imageUrl = item.img || 'https://via.placeholder.com/150?text=No+Image';
 
-            el.onclick = () => {
-                if (window.innerWidth <= 768) {
-                    if (window.App) window.App.addLocationToRoute(item);
-                    const panel = document.getElementById('suggestion-panel');
-                    if (panel) panel.classList.remove('is-visible');
-                } else {
-                    this.showDetailsPanel(item);
+            // 🔥 QUAN TRỌNG: Thêm pointer-events: none vào tất cả thẻ con để không bị "nuốt" click
+            card.innerHTML = `
+            <img src="${imageUrl}" alt="${item.name}" style="pointer-events: none;">
+            <div style="flex:1; min-width:0; padding-right: 10px; pointer-events: none;">
+                <h4 style="margin:0 0 4px 0; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.name}</h4>
+                <p style="margin:0; font-size:0.75rem; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.address}</p>
+            </div>
+            <div class="card-distance" style="font-size: 0.8rem; font-weight: 700; color: var(--primary-color); white-space: nowrap; pointer-events: none;">
+                ${distDisplay}
+            </div>
+        `;
+
+            // 🔥 Gán sự kiện click trực tiếp
+            card.onclick = (e) => {
+                console.log("📍 Đang mở chi tiết cho:", item.name);
+                if (window.App && typeof window.App.showDetails === 'function') {
+                    window.App.showDetails(item);
                 }
             };
 
-            container.appendChild(el);
+            container.appendChild(card);
         });
     }
 
@@ -150,7 +141,7 @@ export class UIModule {
 
         div.onclick = (e) => {
             if (!e.target.closest('.fa-trash-alt') && !e.target.closest('.step-drag-handle')) {
-                this.showDetailsPanel(data);
+                if (window.App) window.App.showDetails(data);
             }
         };
 

@@ -910,25 +910,25 @@ path.leaflet-interactive:hover {
     }
 /* --- SỬA LỖI HIỂN THỊ CHI TIẾT TRÊN MOBILE --- */
 
-/* 1. Reset hiển thị: Cho phép nó hiện lên khi có lệnh từ JS */
-#details-panel {
-    display: none; /* Mặc định ẩn, JS sẽ bật thành flex */
-    /* QUAN TRỌNG: Ghi đè các thuộc tính cũ để full màn hình */
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 10000 !important; /* Cao hơn Map và các nút khác */
-    border: none !important;
-    border-radius: 0 !important;
-    background: #fff !important;
-}
+    /* 1. Reset hiển thị: Cho phép nó hiện lên khi có lệnh từ JS */
+    #details-panel {
+        display: none; /* Mặc định ẩn, JS sẽ bật thành flex */
+        /* QUAN TRỌNG: Ghi đè các thuộc tính cũ để full màn hình */
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 10000 !important; /* Cao hơn Map và các nút khác */
+        border: none !important;
+        border-radius: 0 !important;
+        background: #fff !important;
+    }
 
-/* 2. Đảm bảo nội dung bên trong cuộn được */
-#details-content {
-    padding-bottom: 80px !important; /* Chừa chỗ dưới đáy */
-}
+    /* 2. Đảm bảo nội dung bên trong cuộn được */
+    #details-content {
+        padding-bottom: 80px !important; /* Chừa chỗ dưới đáy */
+    }
 }
 /* --- FIX LỖI: ẨN CÁC NÚT THỪA TRÊN PC & MOBILE --- */
 #mobile-map-toggle,
@@ -1073,3 +1073,33 @@ path.leaflet-interactive:hover {
         left: 20px !important;
     }
 }
+@media (max-width: 768px) {
+    /* Mặc định nút đóng ở bên phải trên Mobile */
+    #close-details-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        left: auto; /* Đảm bảo không bị dính left từ PC */
+        z-index: 1001;
+    }
+
+    /* Khi bật chế độ tay trái trên Mobile, nút X nhảy sang trái */
+    body.left-handed #close-details-btn {
+        right: auto;
+        left: 15px;
+    }
+
+    /* (Tùy chọn) Chuyển cả tiêu đề địa điểm để không bị nút X đè */
+    body.left-handed #details-content h2 {
+        padding-left: 40px;
+        padding-right: 0;
+    }
+}
+
+/* --- TRÊN PC GIỮ NGUYÊN --- */
+/*@media (min-width: 769px) {
+    #close-details-btn {*/
+        /* Giữ vị trí cố định của PC ở đây */
+        /*right: 20px;
+    }
+}*/

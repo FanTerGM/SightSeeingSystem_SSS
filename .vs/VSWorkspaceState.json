@@ -3,7 +3,8 @@
     "",
     "\\frontend",
     "\\frontend\\Reactjs",
-    "\\frontend\\Reactjs\\js"
+    "\\frontend\\Reactjs\\js",
+    "\\frontend\\Reactjs\\js\\modules"
   ],
   "SelectedNode": "\\frontend\\Reactjs\\js\\main.js",
   "PreviewInSolutionExplorer": false
