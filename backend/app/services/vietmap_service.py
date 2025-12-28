@@ -29,18 +29,53 @@ class VietMapService:
                 response.raise_for_status()
                 return response.json()
             except httpx.HTTPError as e:
-                # Có thể log lỗi ở đây
                 print(f"VietMap API Error: {e}")
                 raise e
 
     @staticmethod
     async def autocomplete(q: str, limit: int = 5):
-        return await VietMapService._get("autocomplete", {"text": q, "size": limit})
+        # 600: Tourist Attractions, 200: Accommodation, 300: Leisure
+        # 100: Food & Beverage, 900: Transportation, 400: ATM/Bank, 700: Mall/Shopping
+        tourist_categories = "600,200,300,900,100,400,700"
+        return await VietMapService._get(
+            "autocomplete/v4",
+            {
+                "text": q,
+                "size": limit,
+                "cityId": 12,
+                "display_type": 2,
+                "layers": "POI",
+                "cats" : tourist_categories,
+            },
+        )
 
     @staticmethod
-    async def geocode(address: str, limit: int = 3):
-        params = {"text": address, "size": limit, "display_type": 1}
-        return await VietMapService._get("search", params)
+    async def geocode(query: str, limit: int = 3):
+        params = {
+            "text": query,
+            "size": limit,
+            "display_type": 1,
+            "cityId": 12,
+            "display_type": 2,
+        }
+        return await VietMapService._get("search/v4", params)
+
+    @staticmethod
+    async def search_poi(
+        query: str,
+        radius: int = 500,
+        limit: int = 3,
+    ):
+        tourist_categories = "100,200,300,400,500,600,700,800,900"
+        params = {
+            "text": query,
+            "size": limit,
+            "display_type": 2,
+            "cityId": 12,
+            "layers": "POI",
+            "cats": tourist_categories,
+        }
+        return await VietMapService._get("search/v4", params)
 
     @staticmethod
     async def reverse_geocode(lat: float, lng: float):
