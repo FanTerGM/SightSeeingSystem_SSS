@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Travel - Classic Colors Modern UI</title>
-
+    <title>Smart Travel - Lộ trình thông minh</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body style="position: fixed; width: 100%; height: 100%; overflow: hidden;">
+<body>
 
-    <!-- Chat Widget -->
     <div id="chat-widget">
         <div class="chat-header">
             <i class="fas fa-robot" style="font-size: 1.5rem; color: var(--accent-color);"></i>
@@ -24,17 +22,13 @@
         </div>
         <div class="typing-indicator" id="typing-indicator" style="padding: 0 20px; font-size: 0.8rem; color:#888; display:none;">AI đang soạn tin...</div>
         <div class="chat-footer">
-            <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." style="border-radius:20px; border:1px solid #eee; padding:10px 15px;">
-            <button id="send-msg-btn" style="background:var(--accent-color); color:white; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+            <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+            <button id="send-msg-btn"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
     
-    <button id="floating-chat-btn" title="Chat với AI">
-        <i class="fas fa-comment-alt"></i>
-        <i class="fas fa-times" style="display:none;"></i>
-    </button>
+    <button id="floating-chat-btn" title="Chat với AI"><i class="fas fa-comment-alt"></i><i class="fas fa-times" style="display:none;"></i></button>
 
-    <!-- Control Panel -->
     <div id="control-panel">
         <div id="panel-header">
             <div style="flex: 1;">
@@ -44,21 +38,22 @@
         </div>
 
         <div id="panel-content">
-            <!-- Route Builder Form -->
             <div id="route-builder">
                 <form id="route-form">
                     <div class="input-group">
                         <label>Điểm khởi hành</label>
                         <div class="input-wrapper">
                             <i class="fas fa-map-marker-alt" style="color:var(--danger-color);"></i>
-                            <input type="text" id="start-point" value="Dinh Độc Lập">
+                            <input type="text" id="start-point" placeholder="Nhập điểm đi..." autocomplete="off">
+                            <div id="start-suggestions-list" class="autocomplete-dropdown"></div>
                         </div>
                     </div>
                     <div class="input-group">
                         <label>Điểm đến</label>
                         <div class="input-wrapper">
                             <i class="fas fa-location-dot" style="color:var(--primary-color);"></i>
-                            <input type="text" id="end-point" value="Chợ Bến Thành">
+                            <input type="text" id="end-point" placeholder="Nhập điểm đến..." autocomplete="off">
+                            <div id="end-suggestions-list" class="autocomplete-dropdown"></div>
                         </div>
                     </div>
 
@@ -76,30 +71,33 @@
                                 <i class="fas fa-car-side"></i>
                                 <select id="vehicle-type">
                                     <option value="motorbike">Xe máy</option>
+                                    <option value="car" selected>Ô tô</option>
                                     <option value="walking">Đi bộ</option>
-                                    <option value="car">Ô tô</option>
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row-group">
-                        <div class="input-group">
+                    <div class="row-group" style="align-items: flex-start;">
+                        <div class="input-group" style="flex: 0.8;">
                             <label>Số điểm ghé</label>
                             <div class="input-wrapper">
                                 <i class="fas fa-list-ol"></i>
-                                <input type="number" id="waypointCount" value="2" min="0" max="5">
+                                <input type="number" id="waypointCount" value="2" min="0" max="10">
                             </div>
                         </div>
-                        <div class="input-group">
-                            <label>Ngân sách</label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-wallet"></i>
-                                <select id="trip-budget">
-                                    <option value="economy">Tiết kiệm</option>
-                                    <option value="standard" selected>Vừa phải</option>
-                                    <option value="luxury">Sang trọng</option>
-                                </select>
+                        
+                        <div class="input-group" style="flex: 1.2;">
+                            <label>Ngân sách (VNĐ)</label>
+                            <div class="budget-wrapper">
+                                <div class="values">
+                                    <span id="range1">0đ</span> - <span id="range2">5.0tr</span>
+                                </div>
+                                <div class="slider-container">
+                                    <div class="slider-track"></div>
+                                    <input type="range" min="0" max="10000000" value="0" step="100000" id="slider-1">
+                                    <input type="range" min="0" max="10000000" value="5000000" step="100000" id="slider-2">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -110,18 +108,14 @@
                 </form>
             </div>
 
-            <!-- Route Summary -->
             <div id="route-summary" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:10px; border-bottom:1px solid #eee;">
                     <h3 style="margin:0; font-size:1rem; font-weight:700;">Lộ trình chi tiết</h3>
                     <button id="reopen-suggestion-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
                 </div>
-
+                
                 <div id="route-steps-container"></div>
 
-                <button id="update-map-btn" class="primary-btn" style="margin-top:20px; background: var(--primary-color);">
-                    <i class="fas fa-sync-alt"></i> Cập nhật Bản đồ
-                </button>
                 <button id="edit-route-btn" class="secondary-btn">
                     <i class="fas fa-arrow-left"></i> Chỉnh sửa lại
                 </button>
@@ -129,7 +123,6 @@
         </div>
     </div>
 
-    <!-- Suggestion Panel -->
     <div id="suggestion-panel" class="is-visible">
         <div id="suggestion-header">
             <button id="toggle-suggestion-btn" title="Thu gọn"><i class="fas fa-chevron-left"></i></button>
@@ -138,26 +131,16 @@
         <div class="search-box-wrapper">
             <div class="input-wrapper">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Tìm kiếm địa điểm..." style="background:#f8f9fa;">
+                <input type="text" id="sidebar-search" placeholder="Tìm kiếm địa điểm...">
             </div>
         </div>
         <div id="suggestion-list" style="padding:0 20px 20px 20px; overflow-y:auto; flex:1;"></div>
     </div>
 
-    <!-- Map Container -->
     <div id="big-map"></div>
+    <button id="mobile-map-toggle"><i class="fas fa-expand-arrows-alt"></i></button>
+    <button id="floating-back-btn"><i class="fas fa-arrow-left"></i></button>
 
-    <!-- Map Toggle Button (Mobile) -->
-    <button id="mobile-map-toggle" title="Mở rộng bản đồ">
-        <i class="fas fa-expand-arrows-alt"></i>
-    </button>
-
-    <!-- Floating Back Button -->
-    <button id="floating-back-btn" title="Quay lại nhập liệu">
-        <i class="fas fa-arrow-left"></i>
-    </button>
-
-    <!-- Details Panel -->
     <div id="details-panel">
         <div id="details-header">
             <h2>Thông tin địa điểm</h2>
@@ -166,20 +149,27 @@
         <div id="details-content" style="padding:24px; overflow-y:auto; flex:1;"></div>
     </div>
 
-    <!-- Scripts -->
+<button id="hand-toggle-btn" title="Đổi tay trái/phải">
+    <i class="fas fa-hand-paper"></i>
+</button>
+<div id="mobile-quick-search" class="mobile-search-popup">
+    <div class="mq-header">
+        <i class="fas fa-search" style="color: #2D6A4F;"></i>
+        <input type="text" id="mq-input" placeholder="Nhập tên địa điểm..." autocomplete="off">
+        <button id="mq-close-btn"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="mq-results">
+        <div style="padding:15px; text-align:center; color:#999; font-size:0.85rem;">
+            Nhập từ khóa để tìm kiếm...
+        </div>
+    </div>
+</div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./env.js"></script>
-    
-    <!-- ONLY LOAD main.js - Remove old scripts -->
     <script type="module" src="./js/main.js"></script>
-    
-    <!-- Mobile Drag & Drop Support -->
     <script src="https://unpkg.com/mobile-drag-drop/index.min.js"></script>
     <script>
-        MobileDragDrop.polyfill({
-            holdToDrag: 300, 
-            dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
-        });
+        MobileDragDrop.polyfill({ holdToDrag: 300, dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride });
         window.addEventListener('touchmove', function() {}, {passive: false});
     </script>
 </body>

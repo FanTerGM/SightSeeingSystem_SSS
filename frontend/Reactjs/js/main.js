@@ -1,7 +1,3 @@
-/**
- * MAIN CONTROLLER - Improved version with better error handling
- */
-
 import { apiService } from './services/api.js';
 import { MapModule } from './modules/map.js';
 import { UIModule } from './modules/ui.js';
@@ -19,486 +15,626 @@ class AppController {
     }
 
     async init() {
-        console.log("App đang khởi động...");
-        console.log("API Base URL:", apiService.baseUrl);
-        console.log("Mock Mode:", apiService.useMock);
-
         this.setupEventListeners();
+        this.setupInputAutocomplete();
+        this.setupBudgetSlider(); 
+        
+        // Ẩn các bảng phụ khi mới vào
+        const toggleBtn = document.getElementById('toggle-suggestion-btn');
+        const panel = document.getElementById('suggestion-panel');
+        const detailsPanel = document.getElementById('details-panel');
+        
+        if (toggleBtn) toggleBtn.style.display = 'none';
+        if (panel) panel.classList.remove('is-visible');
+        if (detailsPanel) detailsPanel.style.display = 'none';
+    
+        this.setupMobileUX();
+        this.setupMobileQuickSearch(); 
+
         await this.loadInitialData();
     }
-
+    
     async loadInitialData() {
         try {
-            console.log("Loading initial suggestions...");
-
-            // Strategy 1: Try searching with keyword
-            console.log("Attempting API call with keyword: 'Dinh Độc Lập'");
             this.state.allSuggestions = await apiService.getSuggestions('Dinh Độc Lập');
-
-            console.log("API Response received");
-            console.log("Number of suggestions:", this.state.allSuggestions.length);
-
-            // If API returns no results, try without keyword
-            if (this.state.allSuggestions.length === 0) {
-                console.warn("No results with keyword, trying empty search...");
-                this.state.allSuggestions = await apiService.getSuggestions('');
-            }
-
-            // If still no results, fall back to mock
-            // if (this.state.allSuggestions.length === 0) {
-            //     console.warn("No results from API. Falling back to mock data...");
-            //     apiService.useMock = true;
-            //     this.state.allSuggestions = await apiService.getSuggestions();
-            //     console.log("Mock data loaded:", this.state.allSuggestions.length, "items");
-            // }
-
-            // Update UI
-            this.updateSuggestionUI();
-            console.log("Drawing", this.state.allSuggestions.length, "markers on map...");
-            this.map.drawMarkers(this.state.allSuggestions);
-            console.log("Initialization complete!");
-
-        } catch (error) {
-            console.error("Error loading data:", error);
-            console.error("Error details:", error.message);
-            console.error("Stack trace:", error.stack);
-
-            // Ultimate fallback to mock data
-            console.log("Activating emergency fallback to mock data...");
-            apiService.useMock = true;
-
-            try {
-                this.state.allSuggestions = await apiService.getSuggestions();
-                console.log("Mock data loaded successfully:", this.state.allSuggestions.length, "items");
+            if (typeof this.updateSuggestionUI === 'function') {
                 this.updateSuggestionUI();
-                this.map.drawMarkers(this.state.allSuggestions);
-            } catch (mockError) {
-                console.error("Even mock data failed! This should never happen:", mockError);
-                alert("Có lỗi nghiêm trọng khi khởi động ứng dụng. Vui lòng kiểm tra console.");
             }
+            this.map.drawMarkers(this.state.allSuggestions);
+        } catch (error) {
+            console.error("Lỗi tải dữ liệu:", error);
         }
     }
 
-    updateSuggestionUI() {
-        const currentRouteIds = this.state.route.map(item => item.id);
-        console.log("Updating suggestion UI. Excluding", currentRouteIds.length, "IDs");
-        this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
+    // --- HÀM HỖ TRỢ LỌC ĐỊA CHỈ TRÙNG ---
+    _cleanAddress(name, address) {
+        if (!address) return '';
+        // Nếu địa chỉ bắt đầu bằng tên địa điểm, cắt bỏ phần tên đó đi
+        if (address.toLowerCase().startsWith(name.toLowerCase())) {
+            // Cắt bỏ và xóa các ký tự thừa như dấu phẩy, khoảng trắng ở đầu
+            return address.substring(name.length).replace(/^[\s,.-]+/, '');
+        }
+        return address;
     }
 
-    // --- QUẢN LÝ LỘ TRÌNH ---
-    async addLocationToRoute(locationData, shouldRefreshMap = true) {
-        const exists = this.state.route.find(i => i.id === locationData.id);
-        if (exists) {
-            console.log("Location already in route:", locationData.name);
-            return;
-        }
+    // --- 1. QUẢN LÝ LỘ TRÌNH (CORE LOGIC) ---
 
-        console.log("Adding location to route:", locationData.name);
-
-        // If location needs coordinates, fetch them using ref_id
-        let validLocation = locationData;
-
-        if (locationData.needsDetails && locationData.ref_id) {
-            console.log(`Fetching coordinates for ${locationData.name} using ref_id...`);
-            try {
-                const details = await apiService.getPlaceDetails(locationData.ref_id);
-                validLocation = {
-                    ...locationData,
-                    ...details,
-                    lat: details.lat,
-                    lng: details.lng,
-                    needsDetails: false
-                };
-                console.log(`✓ Coordinates fetched: ${details.lat}, ${details.lng}`);
-            } catch (err) {
-                console.error("Failed to get place details:", err);
-                alert(`Không thể lấy tọa độ cho: ${locationData.name}`);
-                return;
-            }
-        } else if (validLocation.lat == null || validLocation.lng == null ||
-            isNaN(validLocation.lat) || isNaN(validLocation.lng)) {
-            console.warn(`Location ${locationData.name} has invalid coordinates`);
-            alert(`Địa điểm "${locationData.name}" không có tọa độ hợp lệ`);
-            return;
-        }
-
-        this.state.route.push(validLocation);
-        this.ui.addStepItem(validLocation, (deletedItem) => {
-            this.removeLocation(deletedItem);
-        });
-        this.updateSuggestionUI();
-        if (shouldRefreshMap) {
-            await this.refreshMapState();
-        }
+    addLocationToRoute(loc, refresh = true) {
+        if (!loc || !loc.lat) return;
+        this.state.route.push(loc);
+        this.ui.addStepItem(loc, (item) => this.removeLocation(item));
+        if (refresh) this.refreshMapState();
     }
-    removeLocation(locationData) {
-        console.log("Removing location from route:", locationData.name);
-        this.state.route = this.state.route.filter(item => item.id !== locationData.id);
+
+    removeLocation(itemToRemove) {
+        console.log("🗑️ Đang xóa điểm:", itemToRemove.name);
+        this.state.route = this.state.route.filter(item => item.id !== itemToRemove.id);
         this.updateSuggestionUI();
         this.refreshMapState();
     }
 
     async refreshMapState() {
-        console.log("Refreshing map. Route has", this.state.route.length, "locations");
-        const updateBtn = document.getElementById('update-map-btn');
-        if (updateBtn) this.ui.setLoading(updateBtn, true);
-
-        try {
-            // VALIDATION: Check all route points have valid coordinates
-            console.log("Validating route coordinates...");
-            const validRoute = [];
-
-            for (let i = 0; i < this.state.route.length; i++) {
-                const point = this.state.route[i];
-                console.log(`Checking point ${i}: ${point.name}`);
-                console.log(`  Original lat=${point.lat}, lng=${point.lng}`);
-
-                // Try to get valid coordinates
-                let lat = point.lat;
-                let lng = point.lng;
-
-                // If coordinates are missing or NaN, try to fetch them
-                if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
-                    console.warn(`  Point ${i} has invalid coordinates, fetching details...`);
-
-                    try {
-                        const details = await apiService.getLocationDetails(point.name);
-                        lat = details.lat;
-                        lng = details.lng;
-
-                        // Update the original object
-                        point.lat = lat;
-                        point.lng = lng;
-
-                        console.log(`  ✓ Fetched coordinates: lat=${lat}, lng=${lng}`);
-                    } catch (err) {
-                        console.error(`  ✗ Failed to fetch coordinates for ${point.name}:`, err);
-                        alert(`Không thể lấy tọa độ cho: ${point.name}`);
-                        continue; // Skip this point
-                    }
-                }
-
-                // Ensure coordinates are numbers
-                lat = parseFloat(lat);
-                lng = parseFloat(lng);
-
-                if (isNaN(lat) || isNaN(lng)) {
-                    console.error(`  ✗ Invalid coordinates even after fetch: lat=${lat}, lng=${lng}`);
-                    continue; // Skip this point
-                }
-
-                // Add to valid route with guaranteed numeric coordinates
-                validRoute.push({
-                    ...point,
-                    lat: lat,
-                    lng: lng
-                });
-
-                console.log(`  ✓ Point ${i} validated: ${point.name} (${lat}, ${lng})`);
-            }
-
-            if (validRoute.length < this.state.route.length) {
-                console.warn(`Some points were skipped. Valid: ${validRoute.length}/${this.state.route.length}`);
-            }
-
-            // Always draw markers for valid route points
-            this.map.drawMarkers(validRoute);
-            console.log("Markers drawn for", validRoute.length, "locations");
-
-            // Calculate route if we have 2+ valid locations
-            if (validRoute.length >= 2) {
-                console.log("Calculating route between", validRoute.length, "points...");
-                console.log("Route points:", validRoute.map(p => `${p.name} (${p.lat}, ${p.lng})`));
-
-                const routeResult = await apiService.calculateRoute(validRoute);
-
-                if (routeResult && routeResult.path && routeResult.path.length > 0) {
-                    console.log("Route calculated. Path has", routeResult.path.length, "points");
-                    console.log("Distance:", routeResult.distance, "| Duration:", routeResult.duration);
-                    this.map.drawPolyline(routeResult.path);
-                } else {
-                    console.warn("No route path returned from API");
-                }
-            } else {
-                console.log("ℹ Need at least 2 valid locations to calculate route");
-                if (validRoute.length < 2 && this.state.route.length >= 2) {
-                    alert("Một số địa điểm không có tọa độ hợp lệ. Vui lòng kiểm tra lại.");
-                }
-            }
-        } catch (err) {
-            console.error("Error refreshing map:", err);
-            alert("Không thể tính toán lộ trình. Vui lòng thử lại.");
-        } finally {
-            if (updateBtn) setTimeout(() => this.ui.setLoading(updateBtn, false), 500);
+        this.map.drawMarkers(this.state.route);
+        if (this.state.route.length >= 2) {
+            const res = await apiService.calculateRoute(this.state.route);
+            if (res && res.path) this.map.drawPolyline(res.path);
+        } else {
+            // Nếu map có hàm clearPolylineOnly thì gọi, không thì thôi (tránh lỗi)
+            if (this.map.clearPolylineOnly) this.map.clearPolylineOnly();
         }
     }
 
-    // --- XỬ LÝ SỰ KIỆN ---
-    setupEventListeners() {
-        // 1. Form Submit
-        const form = document.getElementById('route-form');
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
-        }
+    updateSuggestionUI() {
+        if (!this.ui || !this.ui.renderSuggestionList) return;
+        const currentRouteIds = this.state.route.map(item => item.id);
+        this.ui.renderSuggestionList(this.state.allSuggestions, currentRouteIds);
+        this._reattachDragEvents();
+    }
 
-        // 2. Drag & Drop
-        this.setupDragAndDrop();
+    _reattachDragEvents() {
+        const container = document.getElementById('suggestion-list');
+        if (!container) return;
+        const items = Array.from(container.children);
 
-        // 3. Nút "Chỉnh sửa lại"
-        const editBtn = document.getElementById('edit-route-btn');
-        if (editBtn) {
-            editBtn.onclick = () => {
-                console.log("↩Returning to builder view");
-                this.ui.navigateTo('builder');
-                this.map.clearRoute();
-                this.state.route = [];
-                document.getElementById('route-steps-container').innerHTML = '';
-                this.updateSuggestionUI();
+        items.forEach((item, index) => {
+            const locationData = this.state.allSuggestions[index];
+            if (!locationData) return;
+
+            item.setAttribute('draggable', 'true');
+            item.style.cursor = 'grab';
+            item.ondragstart = (e) => {
+                e.dataTransfer.setData('application/json', JSON.stringify(locationData));
+                e.dataTransfer.effectAllowed = 'copy';
             };
-        }
-
-        // 4. FLOATING BACK BUTTON
-        const floatingBackBtn = document.getElementById('floating-back-btn');
-        if (floatingBackBtn) {
-            floatingBackBtn.onclick = () => {
-                this.ui.navigateTo('builder');
-                if (document.body.classList.contains('full-map')) {
-                    document.getElementById('mobile-map-toggle').click();
-                }
-            };
-        }
-
-        // 5. Toggle Map Button
-        const toggleBtn = document.getElementById('mobile-map-toggle');
-        if (toggleBtn) {
-            toggleBtn.onclick = () => {
-                document.body.classList.toggle('full-map');
-                const isFull = document.body.classList.contains('full-map');
-                toggleBtn.innerHTML = isFull
-                    ? '<i class="fas fa-compress-arrows-alt"></i>'
-                    : '<i class="fas fa-expand-arrows-alt"></i>';
-                setTimeout(() => { this.map.map.invalidateSize(); }, 350);
-            };
-        }
-
-        // 6. Map resize observer
-        const observer = new MutationObserver(() => {
-            setTimeout(() => { this.map.map.invalidateSize(); }, 350);
         });
-        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
 
-        // 7. Other buttons
-        const updateBtn = document.getElementById('update-map-btn');
-        if (updateBtn) updateBtn.onclick = () => this.refreshMapState();
+    // --- 2. CÁC THIẾT LẬP UI KHÁC ---
+    setupBudgetSlider() {
+        const slider1 = document.getElementById("slider-1");
+        const slider2 = document.getElementById("slider-2");
+        const range1 = document.getElementById("range1");
+        const range2 = document.getElementById("range2");
+        const track = document.querySelector(".slider-track");
+        
+        if(!slider1 || !slider2) return;
 
-        this.setupPanelControls();
-        this.setupChat();
+        const minGap = 500000;
+        const sliderMaxValue = parseInt(slider1.max);
 
-        window.addEventListener('chat-request', (e) => {
-            this.openChatContext(e.detail);
-        });
+        const formatMoney = (num) => {
+            if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.0', '') + "tr";
+            if (num >= 1000) return (num / 1000).toFixed(0) + "k";
+            return num + "đ";
+        };
 
-        // 8. Search input with debounce
-        const searchInput = document.querySelector('.search-box-wrapper input');
-        if (searchInput) {
-            let timeout = null;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(timeout);
-                const keyword = e.target.value.trim();
-                console.log("🔍 Search keyword:", keyword || "(empty)");
+        const updateTrack = (e) => {
+            let val1 = parseInt(slider1.value);
+            let val2 = parseInt(slider2.value);
 
-                timeout = setTimeout(async () => {
-                    try {
-                        this.state.allSuggestions = await apiService.getSuggestions(keyword);
-                        console.log("Search results:", this.state.allSuggestions.length);
-                        this.updateSuggestionUI();
-                    } catch (error) {
-                        console.error("Search error:", error);
+            if (val2 - val1 <= minGap) {
+                if (e && e.target === slider1) slider1.value = val2 - minGap;
+                else slider2.value = val1 + minGap;
+            }
+            
+            val1 = parseInt(slider1.value);
+            val2 = parseInt(slider2.value);
+            
+            range1.textContent = formatMoney(val1);
+            range2.textContent = formatMoney(val2);
+
+            const percent1 = (val1 / sliderMaxValue) * 100;
+            const percent2 = (val2 / sliderMaxValue) * 100;
+            if(track) {
+                track.style.background = `linear-gradient(to right, #dadce0 ${percent1}%, #2D6A4F ${percent1}%, #2D6A4F ${percent2}%, #dadce0 ${percent2}%)`;
+            }
+        }
+
+        slider1.addEventListener('input', updateTrack);
+        slider2.addEventListener('input', updateTrack);
+        updateTrack();
+    }
+
+    // --- 3. POPUP TÌM KIẾM MOBILE (ĐÃ LÀM ĐẸP) ---
+    setupMobileQuickSearch() {
+        const popup = document.getElementById('mobile-quick-search');
+        const input = document.getElementById('mq-input');
+        const list = document.getElementById('mq-results');
+        const closeBtn = document.getElementById('mq-close-btn');
+        const triggerBtn = document.getElementById('reopen-suggestion-btn'); 
+
+        if (!popup || !input || !triggerBtn) return;
+
+        triggerBtn.onclick = (e) => {
+            if (window.innerWidth <= 768) {
+                e.preventDefault(); 
+                popup.classList.add('active'); 
+                setTimeout(() => input.focus(), 100); 
+            } else {
+                const panel = document.getElementById('suggestion-panel');
+                if (panel) panel.classList.add('is-visible');
+            }
+        };
+
+        closeBtn.onclick = () => {
+            popup.classList.remove('active');
+            input.value = ''; 
+            list.innerHTML = '<div style="padding:15px; text-align:center; color:#999; font-size:0.85rem;">Nhập từ khóa để tìm kiếm...</div>';
+        };
+
+        let timeout;
+        input.addEventListener('input', () => {
+            const keyword = input.value.trim();
+            if(keyword) {
+                list.innerHTML = '<div style="padding:15px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tìm...</div>';
+            } else {
+                list.innerHTML = '';
+                return;
+            }
+            
+            clearTimeout(timeout);
+            timeout = setTimeout(async () => {
+                try {
+                    const results = await apiService.getSuggestions(keyword);
+                    list.innerHTML = ''; 
+                    
+                    if (!results || results.length === 0) {
+                        list.innerHTML = '<div style="padding:15px; text-align:center;">Không tìm thấy.</div>';
+                        return;
                     }
-                }, 500);
+
+                    results.forEach(loc => {
+                        const div = document.createElement('div');
+                        // Dùng class suggestion-item để ăn theo CSS đẹp mới thêm
+                        div.className = 'suggestion-item'; 
+                        
+                        const cleanAddr = this._cleanAddress(loc.name, loc.address);
+
+                        div.innerHTML = `
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div class="suggestion-content">
+                                <strong>${loc.name}</strong>
+                                <small>${cleanAddr || 'Không có địa chỉ cụ thể'}</small>
+                            </div>
+                        `;
+                        
+                        div.onclick = () => {
+                            this.addLocationToRoute(loc); 
+                            popup.classList.remove('active'); 
+                            input.value = ''; 
+                            list.innerHTML = '';
+                        };
+                        list.appendChild(div);
+                    });
+
+                } catch (err) {
+                    list.innerHTML = '<div style="padding:15px; text-align:center;">Lỗi kết nối.</div>';
+                }
+            }, 300); 
+        });
+    }
+
+    // --- 4. DROPDOWN AUTOCOMPLETE (ĐÃ LÀM ĐẸP) ---
+    setupInputAutocomplete() {
+        const routeConfigs = [
+            { inputId: 'start-point', listId: 'start-suggestions-list' },
+            { inputId: 'end-point', listId: 'end-suggestions-list' }
+        ];
+
+        routeConfigs.forEach(cfg => {
+            const input = document.getElementById(cfg.inputId);
+            const list = document.getElementById(cfg.listId);
+            if (!input || !list) return;
+
+            input.addEventListener('focus', () => this.renderAutocompleteResults(input, list, input.value.trim()));
+
+            let timer;
+            input.addEventListener('input', (e) => {
+                delete input.dataset.lat;
+                delete input.dataset.lng;
+                clearTimeout(timer);
+                timer = setTimeout(() => this.renderAutocompleteResults(input, list, e.target.value.trim()), 300);
+            });
+        });
+
+        const sidebarSearch = document.getElementById('sidebar-search');
+        if (sidebarSearch) {
+            let sidebarTimer;
+            sidebarSearch.addEventListener('input', (e) => {
+                const keyword = e.target.value.trim();
+                clearTimeout(sidebarTimer);
+
+                sidebarTimer = setTimeout(async () => {
+                    try {
+                        const query = keyword || 'Dinh Độc Lập';
+                        const results = await apiService.getSuggestions(query);
+                        this.state.allSuggestions = results || [];
+
+                        if (this.ui && this.ui.renderSuggestionList) {
+                            this.updateSuggestionUI();
+                        }
+                        if (this.map) {
+                            this.map.drawMarkers(this.state.allSuggestions);
+                        }
+                    } catch (err) {
+                        console.error("Lỗi tìm kiếm Sidebar:", err);
+                    }
+                }, 400);
             });
         }
     }
 
-    async handleFormSubmit(e) {
-        e.preventDefault();
-        console.log("Form submitted");
+    async renderAutocompleteResults(inputEl, listEl, keyword) {
+        listEl.innerHTML = '';
+        listEl.style.display = 'block';
 
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Đang xử lý...';
-        submitBtn.disabled = true;
+        if (!keyword) {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item current-loc';
+            // Cập nhật HTML đẹp
+            item.innerHTML = `
+                <i class="fas fa-crosshairs"></i> 
+                <div class="suggestion-content">
+                    <strong>Vị trí hiện tại của tôi</strong>
+                </div>`; 
+            item.onclick = () => this.handleUseCurrentLocation(inputEl, listEl);
+            listEl.appendChild(item);
+            return;
+        }
 
         try {
-            const startName = document.getElementById('start-point').value;
-            const endName = document.getElementById('end-point').value;
-
-            if (!startName || !endName) {
-                alert("Vui lòng nhập đầy đủ điểm đi và điểm đến!");
+            const results = await apiService.getSuggestions(keyword);
+            if (!results || results.length === 0) {
+                listEl.innerHTML = `<div class="suggestion-item" style="cursor:default">Không tìm thấy địa điểm...</div>`;
                 return;
             }
 
-            console.log("Looking up locations:", { start: startName, end: endName });
-            // 1. Lấy số lượng điểm ghé từ input
-            const waypointCount = parseInt(document.getElementById('waypointCount').value) || 0;
+            results.forEach(loc => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                
+                const cleanAddr = this._cleanAddress(loc.name, loc.address);
 
-            const [startData, endData] = await Promise.all([
-                apiService.getLocationDetails(startName),
-                apiService.getLocationDetails(endName)
-            ]);
-
-            console.log("Found locations:", {
-                start: `${startData.name} (${startData.lat}, ${startData.lng})`,
-                end: `${endData.name} (${endData.lat}, ${endData.lng})`
+                item.innerHTML = `
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div class="suggestion-content">
+                        <strong>${loc.name}</strong>
+                        <small>${cleanAddr || 'Việt Nam'}</small>
+                    </div>`;
+                    
+                item.onclick = () => {
+                    inputEl.value = loc.name;
+                    inputEl.dataset.lat = loc.lat;
+                    inputEl.dataset.lng = loc.lng;
+                    listEl.style.display = 'none';
+                };
+                listEl.appendChild(item);
             });
+        } catch (err) {
+            listEl.style.display = 'none';
+        }
+    }
+
+    handleUseCurrentLocation(inputEl, listEl) {
+        inputEl.value = "Đang xác định vị trí...";
+        if (!navigator.geolocation) {
+            alert("Trình duyệt không hỗ trợ GPS.");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                inputEl.value = `Vị trí của tôi (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+                inputEl.dataset.lat = latitude;
+                inputEl.dataset.lng = longitude;
+                listEl.style.display = 'none';
+            },
+            (err) => {
+                alert("Không thể lấy vị trí: " + err.message);
+                inputEl.value = "";
+            }
+        );
+    }
+
+    // --- 5. LOGIC UX MOBILE THÔNG MINH ---
+    setupMobileUX() {
+        if (window.innerWidth > 768) return;
+
+        const mapEl = document.getElementById('big-map');
+        const panelEl = document.getElementById('control-panel');
+        const handBtn = document.getElementById('hand-toggle-btn');
+        const body = document.body;
+
+        if (!mapEl || !panelEl) return;
+
+        panelEl.classList.add('mobile-expanded');
+        mapEl.classList.add('mobile-minimized');
+
+        setTimeout(() => { if(this.map && this.map.map) this.map.map.invalidateSize(); }, 500);
+
+        const swapView = () => {
+            if (mapEl.classList.contains('mobile-minimized')) {
+                mapEl.classList.remove('mobile-minimized');
+                mapEl.classList.add('mobile-expanded');
+                
+                panelEl.classList.remove('mobile-expanded');
+                panelEl.classList.add('mobile-minimized');
+                
+                setTimeout(() => this.map.map.invalidateSize(), 300);
+            } 
+            else {
+                mapEl.classList.remove('mobile-expanded');
+                mapEl.classList.add('mobile-minimized');
+                
+                panelEl.classList.remove('mobile-minimized');
+                panelEl.classList.add('mobile-expanded');
+            }
+        };
+
+        mapEl.onclick = (e) => {
+            if (mapEl.classList.contains('mobile-minimized')) {
+                e.stopPropagation(); 
+                swapView();
+            }
+        };
+
+        panelEl.onclick = (e) => {
+            if (panelEl.classList.contains('mobile-minimized')) {
+                swapView();
+            }
+        };
+
+        if (handBtn) {
+            handBtn.onclick = () => {
+                body.classList.toggle('left-handed');
+                if (navigator.vibrate) navigator.vibrate(50);
+            };
+        }
+    }
+
+    // --- 6. XỬ LÝ FORM ---
+    async handleFormSubmit(e) {
+        e.preventDefault();
+        if (this.map) this.map.clearRoute();
+
+        const startInput = document.getElementById('start-point');
+        const endInput = document.getElementById('end-point');
+        const countInput = document.getElementById('waypointCount');
+        const vehicleInput = document.getElementById('vehicle-type');
+        
+        const s1 = document.getElementById('slider-1');
+        const s2 = document.getElementById('slider-2');
+        const budget = (s1 && s2) ? `${s1.value}-${s2.value}` : 'standard';
+        
+        const numStops = countInput ? parseInt(countInput.value) || 0 : 0;
+        const vehicle = vehicleInput ? vehicleInput.value : 'car';
+
+        const getPointData = async (input, label) => {
+            if (input.dataset.lat && input.dataset.lng) {
+                return {
+                    id: label + '-' + Date.now() + Math.random(),
+                    name: input.value,
+                    lat: parseFloat(input.dataset.lat),
+                    lng: parseFloat(input.dataset.lng)
+                };
+            }
+            return await apiService.getLocationDetails(input.value);
+        };
+
+        const getCurrentPos = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) return reject(new Error("Trình duyệt không hỗ trợ GPS."));
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                    err => reject(new Error("Không lấy được vị trí: " + err.message))
+                );
+            });
+        };
+
+        try {
+            let p1, p2;
+
+            if (!startInput.value.trim()) {
+                startInput.value = "Đang lấy vị trí...";
+                const pos = await getCurrentPos();
+                p1 = { id: 'start-curr-' + Date.now(), name: 'Vị trí của tôi', lat: pos.lat, lng: pos.lng };
+                startInput.value = p1.name;
+                startInput.dataset.lat = p1.lat;
+                startInput.dataset.lng = p1.lng;
+            } else {
+                p1 = await getPointData(startInput, 'start');
+            }
+
+            if (!endInput.value.trim()) {
+                endInput.value = "Đang chọn điểm đến ngẫu nhiên...";
+                const suggestions = await apiService.getSuggestions('Du lịch');
+                if (!suggestions || suggestions.length === 0) throw new Error("Không tìm thấy địa điểm gợi ý.");
+                const candidates = suggestions.filter(s => s.name !== p1.name);
+                if (candidates.length === 0) throw new Error("Không tìm thấy điểm đến phù hợp.");
+                const randomDest = candidates[Math.floor(Math.random() * candidates.length)];
+                p2 = { ...randomDest, id: 'end-random-' + Date.now() };
+                endInput.value = p2.name;
+                endInput.dataset.lat = p2.lat;
+                endInput.dataset.lng = p2.lng;
+            } else {
+                p2 = await getPointData(endInput, 'end');
+            }
+
+            const payload = {
+                start: p1,
+                end: p2,
+                preferences: { vehicle, budget, num_stops: numStops }
+            };
+            console.log("🚀 Payload gửi đi:", payload);
 
             this.state.route = [];
-            document.getElementById('route-steps-container').innerHTML = '';
+            const container = document.getElementById('route-steps-container');
+            if (container) container.innerHTML = '';
 
-            // 2. Thêm điểm xuất phát
-            this.addLocationToRoute(startData, false);
+            this.addLocationToRoute(p1, false);
 
-            // 3. LOGIC XỬ LÝ ĐIỂM GHÉ (WAYPOINTS)
-            if (waypointCount > 0 && this.state.allSuggestions.length > 0) {
-                // Lọc bỏ điểm trùng với điểm đi/đến để tránh trùng lặp
-                const availablePoints = this.state.allSuggestions.filter(item =>
-                    item.id !== startData.id && item.id !== endData.id
-                );
-
-                // Xáo trộn danh sách ngẫu nhiên (hoặc bạn có thể sort theo rating/khoảng cách nếu có data)
-                const shuffled = availablePoints.sort(() => 0.5 - Math.random());
-
-                // Lấy n điểm đầu tiên
-                const selectedWaypoints = shuffled.slice(0, waypointCount);
-
-                // Thêm từng điểm vào lộ trình
-                selectedWaypoints.forEach(point => {
-                    this.addLocationToRoute(point, false);
-                });
-
-                // Thông báo nhỏ (tuỳ chọn)
-                if (selectedWaypoints.length < waypointCount) {
-                    console.warn(`Chỉ tìm thấy ${selectedWaypoints.length} điểm phù hợp thay vì ${waypointCount}`);
+            if (numStops > 0) {
+                let suggestions = await apiService.getSuggestions('Du lịch'); 
+                if (suggestions && suggestions.length > 0) {
+                    suggestions = suggestions.filter(s => s.name !== p1.name && s.name !== p2.name);
+                    const selectedStops = suggestions.slice(0, numStops);
+                    selectedStops.forEach((stop, idx) => {
+                        this.addLocationToRoute({
+                            ...stop,
+                            id: 'stop-' + idx + '-' + Date.now()
+                        }, false);
+                    });
                 }
             }
 
-            // 4. Thêm điểm kết thúc
-            this.addLocationToRoute(endData, false);
-
-            this.ui.navigateTo('summary');
+            this.addLocationToRoute(p2, false);
+            this.navigateToSummary();
             await this.refreshMapState();
 
         } catch (err) {
-            console.error("Form submission error:", err);
-            alert("Có lỗi khi tìm địa điểm. Vui lòng kiểm tra tên địa điểm và thử lại!");
-        } finally {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+            console.error(err);
+            if (startInput.value === "Đang lấy vị trí...") startInput.value = "";
+            if (endInput.value === "Đang chọn điểm đến ngẫu nhiên...") endInput.value = "";
+            alert("Lỗi: " + err.message);
+        }
+    }
+
+    // --- 7. SỰ KIỆN & ĐIỀU HƯỚNG ---
+    setupEventListeners() {
+        const form = document.getElementById('route-form');
+        if (form) form.onsubmit = (e) => this.handleFormSubmit(e);
+
+        const editBtn = document.getElementById('edit-route-btn');
+        if (editBtn) editBtn.onclick = () => this.navigateToBuilder();
+        
+        const backBtn = document.getElementById('floating-back-btn');
+        if (backBtn) backBtn.onclick = () => this.navigateToBuilder();
+        
+        // Nút đóng bảng chi tiết (cho Mobile)
+        const closeDetailsBtn = document.getElementById('close-details-btn');
+        if (closeDetailsBtn) {
+            closeDetailsBtn.onclick = () => {
+                const detailsPanel = document.getElementById('details-panel');
+                if (detailsPanel) detailsPanel.style.setProperty('display', 'none', 'important');
+            };
+        }
+        
+        this.setupDragAndDrop();
+        this.setupPanelControls();
+        this.setupChat();
+    }
+
+    navigateToBuilder() {
+        document.getElementById('route-builder').style.display = 'block';
+        document.getElementById('route-summary').style.display = 'none';
+        const panel = document.getElementById('suggestion-panel');
+        const toggleBtn = document.getElementById('toggle-suggestion-btn');
+        if (panel) panel.classList.remove('is-visible');
+        if (toggleBtn) toggleBtn.style.display = 'none';
+    }
+
+    navigateToSummary() {
+        document.getElementById('route-builder').style.display = 'none';
+        document.getElementById('route-summary').style.display = 'block';
+        const panel = document.getElementById('suggestion-panel');
+        const toggleBtn = document.getElementById('toggle-suggestion-btn');
+        const btnIcon = toggleBtn ? toggleBtn.querySelector('i') : null;
+        if (panel) panel.classList.add('is-visible'); 
+        if (toggleBtn) {
+            toggleBtn.style.display = 'flex'; 
+            if (btnIcon) btnIcon.className = 'fas fa-chevron-left';
         }
     }
 
     setupDragAndDrop() {
         const dropZone = document.getElementById('route-steps-container');
         if (!dropZone) return;
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('drag-over');
-        });
-
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.backgroundColor = '#e8f0fe'; dropZone.style.border = '2px dashed #1a73e8'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.backgroundColor = ''; dropZone.style.border = ''; });
         dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
+            e.preventDefault(); dropZone.style.backgroundColor = ''; dropZone.style.border = '';
             const rawData = e.dataTransfer.getData('application/json');
             if (rawData) {
-                const data = JSON.parse(rawData);
-                console.log("Dropped location:", data.name);
-                this.addLocationToRoute(data);
+                try {
+                    const locationData = JSON.parse(rawData);
+                    this.addLocationToRoute({ ...locationData, id: 'drag-' + Date.now() + Math.random() });
+                } catch (err) { console.error("Lỗi drop:", err); }
             }
         });
     }
 
     setupPanelControls() {
-        document.getElementById('toggle-suggestion-btn').onclick = () =>
-            document.getElementById('suggestion-panel').classList.remove('is-visible');
-
-        document.getElementById('reopen-suggestion-btn').onclick = () =>
-            document.getElementById('suggestion-panel').classList.add('is-visible');
-
-        document.getElementById('close-details-btn').onclick = () =>
-            document.getElementById('details-panel').style.display = 'none';
+        const sugPanel = document.getElementById('suggestion-panel');
+        const toggleBtn = document.getElementById('toggle-suggestion-btn');
+        if (toggleBtn && sugPanel) {
+            toggleBtn.onclick = () => {
+                sugPanel.classList.toggle('is-visible');
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.className = sugPanel.classList.contains('is-visible') ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+                }
+            };
+        }
     }
 
     setupChat() {
         const floatBtn = document.getElementById('floating-chat-btn');
+        const chatWidget = document.getElementById('chat-widget');
+        if (!floatBtn || !chatWidget) return;
+        Object.assign(floatBtn.style, { zIndex: "99999", position: "fixed", bottom: "30px", right: "20px", display: "flex" });
+        Object.assign(chatWidget.style, { zIndex: "99999", position: "fixed", bottom: "90px", right: "20px", backgroundColor: "white" });
+        floatBtn.onclick = (e) => {
+            e.preventDefault();
+            const isHidden = chatWidget.style.display === 'none' || chatWidget.style.display === '';
+            if (isHidden) {
+                chatWidget.style.display = 'flex';
+                floatBtn.querySelector('.fa-comment-alt').style.display = 'none';
+                floatBtn.querySelector('.fa-times').style.display = 'block';
+                setTimeout(() => document.getElementById('chat-input')?.focus(), 50);
+            } else {
+                chatWidget.style.display = 'none';
+                floatBtn.querySelector('.fa-comment-alt').style.display = 'block';
+                floatBtn.querySelector('.fa-times').style.display = 'none';
+            }
+        };
         const sendBtn = document.getElementById('send-msg-btn');
         const input = document.getElementById('chat-input');
-
-        floatBtn.onclick = () => {
-            document.body.classList.toggle('chat-open');
-            const isOpen = document.body.classList.contains('chat-open');
-            floatBtn.querySelector('.fa-comment-alt').style.display = isOpen ? 'none' : 'block';
-            floatBtn.querySelector('.fa-times').style.display = isOpen ? 'block' : 'none';
-        };
-
         const sendMessage = async () => {
             const txt = input.value.trim();
             if (!txt) return;
-
-            console.log("Sending chat message:", txt);
-
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
-            input.disabled = true;
-            sendBtn.disabled = true;
-            this.ui.showTypingIndicator(true);
-
+            if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(true);
             try {
-                const chatResult = await apiService.chat(txt);
-                console.log("AI response:", chatResult);
-
-                this.ui.addChatMessage(chatResult.reply, 'ai');
-
-                if (chatResult.selected_locations && chatResult.selected_locations.length > 0) {
-                    console.log("AI suggested", chatResult.selected_locations.length, "locations");
-                    this.state.allSuggestions = chatResult.selected_locations;
-                    this.updateSuggestionUI();
-
-                    this.ui.addChatMessage(`
-                        <span style="font-size:0.85rem; color:#137333;">
-                        <i class="fas fa-check-circle"></i> Tôi đã cập nhật 
-                        <strong>${chatResult.selected_locations.length}</strong> gợi ý 
-                        mới vào Panel bên phải.
-                        </span>
-                    `, 'ai');
-                }
-
-            } catch (error) {
-                this.ui.addChatMessage("Đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.", 'ai');
-                console.error("Chatbot Error:", error);
-            } finally {
-                this.ui.showTypingIndicator(false);
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
-            }
+                const res = await apiService.chat(txt); 
+                const aiResponse = res.reply || res.answer || "Không có phản hồi.";
+                this.ui.addChatMessage(aiResponse, 'ai');
+            } catch (e) { this.ui.addChatMessage("Lỗi kết nối.", 'ai'); } 
+            finally { if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(false); }
         };
-
-        sendBtn.onclick = sendMessage;
-        input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
-    }
-
-    openChatContext(contextName) {
-        if (!document.body.classList.contains('chat-open')) {
-            document.getElementById('floating-chat-btn').click();
-        }
-        document.getElementById('chat-input').value = `Gợi ý các địa điểm tương tự như ${contextName}`;
+        if (sendBtn) sendBtn.onclick = sendMessage;
+        if (input) input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
     }
 }
 
-const app = new AppController();
-window.App = app;
+document.addEventListener('DOMContentLoaded', () => { window.App = new AppController(); });

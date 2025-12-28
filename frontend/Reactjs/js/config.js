@@ -14,7 +14,7 @@ export const CONFIG = {
     // --- 2. Cấu hình Bản đồ (Leaflet) ---
     DEFAULT_COORDS: [10.7769, 106.7009], 
     DEFAULT_ZOOM: 14,
-    TILE_LAYER_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    TILE_LAYER_URL: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     
     // --- 3. Cấu hình API Key (ĐỌC TỪ FILE .ENV) ---
     VIETMAP_KEY_FRONTEND: ENV.VIETMAP_API_KEY || "",
