@@ -89,6 +89,41 @@ class AppController {
 
         await this.loadInitialData();
     }
+    async handleAutoChat(locationName) {
+        if (!locationName) return;
+
+        // A. Mở khung chat lên trước
+        this.ui.openChatWindow();
+
+        // B. Tạo câu hỏi mẫu
+        const question = `Tôi đang muốn tìm hiểu về địa điểm "${locationName}" ở Thành phố Hồ Chí Minh. 
+         Hãy đóng vai hướng dẫn viên du lịch, giới thiệu ngắn gọn về lịch sử, cái hay, cái đẹp và các hoạt động thú vị ở đây. 
+         Lưu ý: Chỉ cung cấp thông tin, không cần hỏi về lộ trình hay điểm xuất phát.`;
+
+        // C. Hiển thị tin nhắn của người dùng lên màn hình
+        this.ui.addChatMessage(question, 'user');
+
+        // D. Hiện hiệu ứng "AI đang soạn tin..."
+        if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(true);
+
+        try {
+            // E. Gọi API thật để lấy câu trả lời
+            const res = await apiService.chat(question);
+
+            // Lấy nội dung trả lời (tùy format API của bạn trả về field nào)
+            const aiResponse = res.reply || res.answer || res.message || "Xin lỗi, mình chưa tìm thấy thông tin về nơi này.";
+
+            // F. Hiển thị câu trả lời của AI
+            this.ui.addChatMessage(aiResponse, 'ai');
+
+        } catch (err) {
+            console.error("Lỗi chat AI:", err);
+            this.ui.addChatMessage("Xin lỗi, hệ thống đang bận, vui lòng thử lại sau.", 'ai');
+        } finally {
+            // Tắt hiệu ứng soạn tin
+            if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(false);
+        }
+    }
     // --- 1. HÀM HIỂN THỊ CHI TIẾT (Dán vào trong Class AppController) ---
     showDetails(loc) {
         const panel = document.getElementById('details-panel');
@@ -128,22 +163,41 @@ class AppController {
             };
         }
     }
+    // --- TÌM VÀ SỬA TRONG FILE: js/main.js ---
+
     async loadInitialData() {
         try {
             const lat = this.state.userLocation?.lat || 10.7769;
             const lng = this.state.userLocation?.lng || 106.6953;
+            // Lấy bán kính từ thanh trượt (hoặc mặc định 20km)
             const radius = parseInt(document.getElementById('radius-slider').value) || 20;
 
-            // 🔥 Ưu tiên lọc từ Database cục bộ thay vì gọi API tìm chữ "Du lịch"
+            // 1. Lọc tất cả các điểm nằm trong bán kính
             let suggestions = LOCAL_PLACES.filter(place => {
                 return this._getDistance(lat, lng, place.lat, place.lng) <= radius;
             });
 
-            if (suggestions.length === 0) suggestions = LOCAL_PLACES.slice(0, 20);
+            // 🔥 GIẢI PHÁP CHỐNG LAG: CHỈ LẤY 10 ĐIỂM TIÊU BIỂU 🔥
+            if (suggestions.length > 10) {
+                // Mẹo: Xáo trộn ngẫu nhiên danh sách rồi cắt lấy 10 điểm
+                // Để mỗi lần F5 bạn sẽ thấy 10 quán khác nhau cho đỡ chán
+                suggestions = suggestions.sort(() => 0.5 - Math.random()).slice(0, 10);
+            }
 
+            // Phòng hờ: Nếu xung quanh không có gì (ví dụ đang ở biển), lấy đại 10 điểm đầu tiên trong DB
+            if (suggestions.length === 0) {
+                suggestions = LOCAL_PLACES.slice(0, 10);
+            }
+
+            // 2. Cập nhật dữ liệu vào State
             this.state.allSuggestions = suggestions;
+
+            // 3. Cập nhật giao diện danh sách bên trái
             this.updateSuggestionUI();
+
+            // 4. Vẽ lên bản đồ (Lúc này chỉ vẽ đúng 10 điểm -> Map bao mượt)
             this.map.drawMarkers(this.state.allSuggestions);
+
         } catch (error) {
             console.error("Lỗi load data đầu:", error);
         }
@@ -248,43 +302,71 @@ class AppController {
         this.refreshMapState();
     }
 
-    async refreshMapState() {
+    // Trong js/main.js
+    async refreshMapState(vehicleType = 'car') {
         this.map.drawMarkers(this.state.route);
+
         if (this.state.route.length >= 2) {
-            const res = await apiService.calculateRoute(this.state.route);
-            if (res && res.path) this.map.drawPolyline(res.path);
+            const res = await apiService.calculateRoute(this.state.route, vehicleType);
+
+            if (res && res.success) {
+                // 1. Vẽ đường xanh nối liền (dùng fullPath)
+                const segmentsToDraw = res.segments || [];
+                this.map.drawRouteWithSegments(segmentsToDraw);
+
+                // ✅ Vẽ nhãn km/phút xuôi theo đường
+                this.map.drawSegmentLabels(segmentsToDraw, vehicleType);
+            }
         } else {
-            if (this.map.clearPolylineOnly) this.map.clearPolylineOnly();
+            if (this.map.clearRoute) this.map.clearRoute();
         }
     }
 
     // js/main.js
 
+    // --- FILE: js/main.js ---
+
+    // --- TRONG FILE: js/main.js ---
+
     updateSuggestionUI() {
         if (!this.ui || !this.ui.renderSuggestionList) return;
 
-        // 1. Xác định tọa độ gốc để tính KM 
-        // Ưu tiên: Điểm khởi hành trong lộ trình -> Vị trí GPS -> Mặc định Dinh Độc Lập
-        const startPoint = this.state.route[0];
-        const baseLat = startPoint ? startPoint.lat : (this.state.userLocation?.lat || 10.7769);
-        const baseLng = startPoint ? startPoint.lng : (this.state.userLocation?.lng || 106.6953);
+        // 1. Xác định tọa độ gốc
+        let baseLat = null;
+        let baseLng = null;
 
-        // 2. Gán thêm trường distance (khoảng cách) vào mỗi địa điểm
-        const suggestionsWithDist = this.state.allSuggestions.map(place => ({
-            ...place,
-            distance: this._getDistance(baseLat, baseLng, place.lat, place.lng)
-        }));
+        if (this.state.route.length > 0) {
+            baseLat = this.state.route[0].lat;
+            baseLng = this.state.route[0].lng;
+        } else if (this.state.userLocation) {
+            baseLat = this.state.userLocation.lat;
+            baseLng = this.state.userLocation.lng;
+        }
 
-        // 3. Sắp xếp danh sách: Gần nhất nằm trên cùng
-        suggestionsWithDist.sort((a, b) => a.distance - b.distance);
+        // 2. Tính khoảng cách
+        const suggestionsWithDist = this.state.allSuggestions.map(place => {
+            let dist = null;
+            if (baseLat && baseLng && place.lat && place.lng) {
+                dist = this._getDistance(baseLat, baseLng, place.lat, place.lng);
+            }
+            return { ...place, distance: dist };
+        });
 
-        // 4. Lấy danh sách ID đã có trong lộ trình để ẩn nút hoặc làm mờ
+        // 3. Sắp xếp: Gần nhất lên đầu
+        if (baseLat && baseLng) {
+            suggestionsWithDist.sort((a, b) => (a.distance || 99999) - (b.distance || 99999));
+        }
+
+        // 🔥 THÊM ĐOẠN NÀY: Cắt lấy 10 điểm đầu tiên thôi
+        const limitedSuggestions = suggestionsWithDist.slice(0, 10);
+
+        // 4. Lấy danh sách ID đã có trong lộ trình
         const currentRouteIds = this.state.route.map(item => item.id);
 
-        // 5. Truyền sang UI để vẽ lại danh sách có kèm số KM
-        this.ui.renderSuggestionList(suggestionsWithDist, currentRouteIds);
+        // 5. Truyền danh sách ĐÃ RÚT GỌN sang UI để vẽ
+        this.ui.renderSuggestionList(limitedSuggestions, currentRouteIds);
 
-        // 6. Quan trọng: Gán lại sự kiện click và kéo thả cho các thẻ mới vừa vẽ
+        // 6. Gán lại sự kiện kéo thả
         this._reattachDragEvents();
     }
 
@@ -319,7 +401,7 @@ class AppController {
     setupBudgetSlider() {
         const slider1 = document.getElementById("slider-1");
         const slider2 = document.getElementById("slider-2");
-        const track = document.querySelector(".slider-track");
+        const track = document.getElementById("budget-track");
         if(!slider1 || !slider2 || !track) return;
         
         const minGap = 500000;
@@ -376,6 +458,8 @@ class AppController {
     }
 
     // --- 3. MOBILE SEARCH & AUTOCOMPLETE ---
+    // --- TRONG FILE: js/main.js ---
+
     setupMobileQuickSearch() {
         const popup = document.getElementById('mobile-quick-search');
         const input = document.getElementById('mq-input');
@@ -405,41 +489,53 @@ class AppController {
                 return;
             }
 
-            list.innerHTML = '<div style="padding:15px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tìm trong hệ thống...</div>';
+            list.innerHTML = '<div style="padding:15px; text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tìm...</div>';
 
             clearTimeout(timeout);
             timeout = setTimeout(async () => {
                 try {
-                    // 🔥 CƠ CHẾ MỚI: Gọi searchPlaces để ưu tiên Database xịn
                     const results = await this.searchPlaces(keyword);
-
                     list.innerHTML = '';
+
                     if (!results || results.length === 0) {
-                        list.innerHTML = '<div style="padding:15px; text-align:center;">Không tìm thấy địa điểm phù hợp.</div>';
+                        list.innerHTML = '<div style="padding:15px; text-align:center;">Không tìm thấy địa điểm.</div>';
                         return;
                     }
 
+                    // 🔥 1. TÍNH TOÁN KHOẢNG CÁCH (Copy logic từ updateSuggestionUI)
+                    // Xác định điểm gốc (ưu tiên điểm Khởi hành -> GPS -> Mặc định)
+                    const startPoint = this.state.route[0];
+                    const baseLat = startPoint ? startPoint.lat : (this.state.userLocation?.lat || 10.7769);
+                    const baseLng = startPoint ? startPoint.lng : (this.state.userLocation?.lng || 106.6953);
+
                     results.forEach(loc => {
                         const div = document.createElement('div');
-                        div.className = 'suggestion-item';
+                        div.className = 'suggestion-item'; // Dùng lại class cũ cho đẹp
 
-                        // Xử lý địa chỉ hiển thị
                         const cleanAddr = loc.address || 'Việt Nam';
-
-                        // Hiển thị icon Star nếu là hàng từ Database xịn
                         const icon = loc.desc ? 'fa-star' : 'fa-map-marker-alt';
                         const iconColor = loc.desc ? '#ffc107' : '#666';
 
+                        // 🔥 2. TÍNH KM
+                        let distDisplay = '';
+                        if (loc.lat && loc.lng) {
+                            const d = this._getDistance(baseLat, baseLng, loc.lat, loc.lng);
+                            distDisplay = `${d.toFixed(1)} km`;
+                        }
+
+                        // 🔥 3. THÊM SỐ KM VÀO HTML (Bên phải cùng)
                         div.innerHTML = `
                             <i class="fas ${icon}" style="color: ${iconColor};"></i>
-                            <div class="suggestion-content">
+                            <div class="suggestion-content" style="flex: 1;">
                                 <strong>${loc.name}</strong>
                                 <small>${cleanAddr}</small>
+                            </div>
+                            <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary-color); margin-left: 10px; white-space: nowrap;">
+                                ${distDisplay}
                             </div>
                         `;
 
                         div.onclick = () => {
-                            // Khi chọn điểm trên mobile, thêm vào lộ trình và đóng popup
                             this.addLocationToRoute(loc);
                             popup.classList.remove('active');
                             input.value = '';
@@ -448,7 +544,8 @@ class AppController {
                         list.appendChild(div);
                     });
                 } catch (err) {
-                    list.innerHTML = '<div style="padding:15px; text-align:center;">Lỗi kết nối dữ liệu.</div>';
+                    console.error(err);
+                    list.innerHTML = '<div style="padding:15px; text-align:center;">Lỗi kết nối.</div>';
                 }
             }, 300);
         });
@@ -693,46 +790,126 @@ class AppController {
 
             console.log(`🎯 Tìm thấy ${validPlaces.length} điểm phù hợp.`);
 
-            // --- 4. TẠO LỘ TRÌNH THÔNG MINH (Tránh ZigZag) ---
+            const vehicleSelect = document.getElementById('vehicle-type');
+            const vehicleType = vehicleSelect ? vehicleSelect.value : 'car';
+
+            // --- 4. TẠO LỘ TRÌNH THÔNG MINH (DYNAMIC CONTEXT - TYPE BASED) ---
+
             let finalRoute = [p1];
+            let currentPoint = p1;
 
-            if (numStops > 0 && validPlaces.length > 0) {
-                const buckets = {
-                    sight: validPlaces.filter(p => p.type === 'sight'),
-                    cafe: validPlaces.filter(p => p.type === 'cafe'),
-                    food: validPlaces.filter(p => p.type === 'food'),
-                    another: validPlaces.filter(p => p.type === 'another')
-                };
+            // A. PHÂN LOẠI DATA
+            // Nhóm các điểm vào các bucket để dễ chọn
+            const groups = {
+                recharge: validPlaces.filter(p => p.type === 'cafe' || p.type === 'food'),
+                // Nhóm Explore bao gồm: Tham quan, Khác, Mua sắm (nếu có)
+                explore: validPlaces.filter(p => p.type === 'sight' || p.type === 'another' || p.type === 'shopping'),
+                // Nhóm Chill: Nightlife
+                chill: validPlaces.filter(p => p.type === 'nightlife')
+            };
 
-                const priorityTypes = ['sight', 'cafe', 'food', 'another'];
-                let addedCount = 0;
-                let lastPoint = p1; // Điểm tham chiếu để tìm điểm tiếp theo gần nhất
+            // Hàm tìm điểm gần nhất (Nearest Neighbor)
+            const findNearest = (source, list) => {
+                if (!list || list.length === 0) return null;
+                const sortedList = [...list].sort((a, b) => {
+                    const d1 = this._getDistance(source.lat, source.lng, a.lat, a.lng);
+                    const d2 = this._getDistance(source.lat, source.lng, b.lat, b.lng);
+                    return d1 - d2;
+                });
+                return sortedList[0];
+            };
 
-                for (const type of priorityTypes) {
-                    if (addedCount >= numStops) break;
+            // Hàm thêm điểm & xóa khỏi danh sách chờ
+            const addStop = (place, debugTag) => {
+                if (!place) return false;
+                const stop = { ...place, id: `stop-${debugTag}-${Date.now()}-${Math.random()}` };
+                finalRoute.push(stop);
+                currentPoint = stop;
 
-                    let items = buckets[type];
-                    if (items.length > 0) {
-                        // Sắp xếp các điểm trong nhóm theo khoảng cách tới điểm vừa thêm vào lộ trình
-                        items.sort((a, b) => {
-                            const distA = this._getDistance(lastPoint.lat, lastPoint.lng, a.lat, a.lng);
-                            const distB = this._getDistance(lastPoint.lat, lastPoint.lng, b.lat, b.lng);
-                            return distA - distB;
-                        });
+                [groups.recharge, groups.explore, groups.chill].forEach(g => {
+                    const idx = g.findIndex(p => p.name === place.name);
+                    if (idx > -1) g.splice(idx, 1);
+                });
+                return true;
+            };
 
-                        // Lấy điểm gần nhất (Nearest Neighbor) để lộ trình mượt hơn
-                        const stop = items[0];
-                        if (!finalRoute.some(r => r.name === stop.name)) {
-                            const newStop = { ...stop, id: 'stop-' + addedCount + '-' + Date.now() };
-                            finalRoute.push(newStop);
-                            lastPoint = newStop; // Cập nhật điểm cuối để tìm điểm tiếp theo
-                            addedCount++;
-                        }
+            // --- B. NHẬN DIỆN NGỮ CẢNH DỰA TRÊN TYPE (LOGIC MỚI) ---
+
+            // 1. Phân tích ĐIỂM ĐI (P1)
+            let nextAction = 'explore'; // Mặc định là đi chơi
+
+            if (p1.type === 'transport') {
+                // Nếu từ Sân bay/Bến xe/Ga tàu -> Mệt/Đói -> Đi Ăn/Uống
+                nextAction = 'recharge';
+            }
+            else if (p1.type === 'food' || p1.type === 'cafe') {
+                // Nếu xuất phát từ quán ăn -> Đã no -> Đi Tham quan
+                nextAction = 'explore';
+            }
+            else if (p1.type === 'hotel') {
+                // Nếu từ Khách sạn bước ra -> Đã khỏe -> Đi Tham quan
+                nextAction = 'explore';
+            }
+
+            // 2. Phân tích ĐIỂM ĐẾN (P2)
+            const isDestinationHotel = (p2.type === 'hotel');
+            const isDestinationTransport = (p2.type === 'transport');
+
+            // --- C. VÒNG LẶP CHỌN ĐIỂM ---
+
+            for (let i = 0; i < numStops; i++) {
+                const isLastStop = (i === numStops - 1);
+                let selectedStop = null;
+                let actionTaken = '';
+
+                // --- XỬ LÝ ĐIỂM CUỐI CÙNG (Dựa trên loại điểm đến P2) ---
+                if (isLastStop) {
+                    if (isDestinationHotel) {
+                        // Nếu về Khách sạn ngủ -> Điểm cuối nên là Nightlife hoặc Chill nhẹ
+                        // (Ưu tiên tìm Chill, nếu ko có thì tìm Explore gần đó)
+                        selectedStop = findNearest(currentPoint, groups.chill) || findNearest(currentPoint, groups.explore);
+                        actionTaken = 'chill';
+                    }
+                    else if (isDestinationTransport) {
+                        // Nếu ra Sân bay/Bến xe -> Điểm cuối nên là Cafe/Ăn nhẹ để ngồi chờ
+                        selectedStop = findNearest(currentPoint, groups.recharge);
+                        actionTaken = 'recharge';
+                    }
+                    else {
+                        // Nếu điểm đến là chỗ chơi khác -> Điểm áp chót là nghỉ chân (Recharge)
+                        selectedStop = findNearest(currentPoint, groups.recharge);
+                        actionTaken = 'recharge';
+                    }
+                }
+
+                // --- XỬ LÝ CÁC ĐIỂM Ở GIỮA (Nếu chưa phải điểm cuối hoặc chưa tìm được điểm cuối) ---
+                if (!selectedStop) {
+                    if (nextAction === 'recharge') {
+                        selectedStop = findNearest(currentPoint, groups.recharge);
+                        actionTaken = 'recharge';
+                    } else {
+                        selectedStop = findNearest(currentPoint, groups.explore);
+                        actionTaken = 'explore';
+                    }
+                }
+
+                // --- THỰC HIỆN THÊM ĐIỂM ---
+                if (addStop(selectedStop, actionTaken)) {
+                    // Đảo trạng thái: Ăn xong thì đi Chơi, Chơi xong thì đi Ăn
+                    if (actionTaken === 'recharge') nextAction = 'explore';
+                    else if (actionTaken === 'explore') nextAction = 'recharge';
+                }
+                else {
+                    // FALLBACK: Nếu tìm loại này không ra, lấy loại kia đi tạm
+                    const fallbackStop = findNearest(currentPoint, groups.explore) || findNearest(currentPoint, groups.recharge);
+                    if (addStop(fallbackStop, 'fallback')) {
+                        if (fallbackStop.type === 'cafe' || fallbackStop.type === 'food') nextAction = 'explore';
+                        else nextAction = 'recharge';
                     }
                 }
             }
 
-            // Luôn đẩy điểm kết thúc vào cuối cùng
+            // --- D. VỀ ĐÍCH ---
             finalRoute.push(p2);
 
             // --- 5. CẬP NHẬT STATE VÀ UI ---
@@ -745,7 +922,7 @@ class AppController {
             });
 
             this.navigateToSummary();
-            await this.refreshMapState();
+            await this.refreshMapState(vehicleType);
 
         } catch (err) {
             console.error(err);
@@ -843,6 +1020,11 @@ class AppController {
                 }
             }
         });
+        window.addEventListener('chat-request', (e) => {
+            // e.detail chính là tên địa điểm được gửi từ map.js
+            const locationName = e.detail;
+            this.handleAutoChat(locationName);
+        });
     }
 
     navigateToBuilder() {
@@ -897,7 +1079,8 @@ class AppController {
         const floatBtn = document.getElementById('floating-chat-btn');
         const chatWidget = document.getElementById('chat-widget');
         if (!floatBtn || !chatWidget) return;
-        Object.assign(floatBtn.style, { zIndex: "99999", position: "fixed", bottom: "30px", right: "20px", display: "flex" });
+        // Chỉ set zIndex và display, ĐỪNG set top/left/right/bottom ở đây để CSS tự lo
+        Object.assign(floatBtn.style, { zIndex: "99999", position: "fixed", display: "flex" });
         Object.assign(chatWidget.style, { zIndex: "99999", position: "fixed", bottom: "90px", right: "20px", backgroundColor: "white" });
         floatBtn.onclick = (e) => {
             e.preventDefault();

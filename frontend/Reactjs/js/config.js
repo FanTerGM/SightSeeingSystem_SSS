@@ -6,7 +6,7 @@ const ENV = window.__ENV || {};
 
 export const CONFIG = {
     // --- 1. Cấu hình API ---
-    API_BASE_URL: 'http://localhost:8000/api', 
+    API_BASE_URL: 'http://localhost:8000', 
     
     USE_MOCK_DATA: false, 
     MOCK_DELAY: 800, 

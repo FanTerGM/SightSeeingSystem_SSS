@@ -4,8 +4,9 @@
     "\\frontend",
     "\\frontend\\Reactjs",
     "\\frontend\\Reactjs\\js",
-    "\\frontend\\Reactjs\\js\\modules"
+    "\\frontend\\Reactjs\\js\\modules",
+    "\\frontend\\Reactjs\\js\\services"
   ],
-  "SelectedNode": "\\frontend\\Reactjs\\js\\main.js",
+  "SelectedNode": "\\frontend\\Reactjs\\js\\config.js",
   "PreviewInSolutionExplorer": false
 }
