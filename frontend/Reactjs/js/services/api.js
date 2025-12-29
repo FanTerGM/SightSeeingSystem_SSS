@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 
-// --- MOCK DATA (Giữ nguyên để test khi không có mạng) ---
+// --- MOCK DATA ---
 const MOCK_DB = [
     { id: 1, name: 'Dinh Độc Lập', type: 'Di tích', address: '135 Nam Kỳ Khởi Nghĩa, Q1', price: '65.000đ', status: 'Mở cửa', isOpen: true, lat: 10.7770, lng: 106.6953, temp: '32°C', weatherIcon: 'fa-sun', img: 'https://images.unsplash.com/photo-1592114714621-ccc6cacad26b?auto=format&fit=crop&w=500&q=80', desc: 'Di tích lịch sử văn hóa nổi tiếng.' },
     { id: 2, name: 'Chợ Bến Thành', type: 'Mua sắm', address: 'Đ. Lê Lợi, Q1', price: 'Miễn phí', status: 'Mở cửa', isOpen: true, lat: 10.7725, lng: 106.6980, temp: '33°C', weatherIcon: 'fa-cloud-sun', img: 'https://via.placeholder.com/150/E76F51/FFFFFF?text=Cho', desc: 'Khu chợ biểu tượng của Sài Gòn.' },
@@ -19,7 +19,7 @@ class ApiService {
         return new Promise(resolve => setTimeout(() => resolve(data), CONFIG.MOCK_DELAY));
     }
 
-    // 🔥 FIX LỖI 502: Thêm hàm delay để tránh spam server
+    // 🔥 Delay helper to prevent 502 errors
     _sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -32,9 +32,8 @@ class ApiService {
         try {
             const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
             if (!response.ok) {
-                // Log lỗi nhưng không throw để tránh crash app khi 1 segment lỗi
                 console.error(`API Error ${response.status} at ${path}`);
-                return null;
+                return null; // Return null instead of throwing
             }
             return await response.json();
         } catch (error) {
@@ -54,16 +53,64 @@ class ApiService {
             return await response.json();
         } catch (error) {
             console.error(`GET Error at ${path}:`, error);
-            return []; // Trả về mảng rỗng để không crash UI
+            return []; // Return empty array to avoid crashes
         }
     }
 
-    // --- ADAPTER ---
+    // --- ADAPTER: UNIFIED DATA MAPPING ---
     _mapApiToApp(item) {
         if (!item) return null;
 
-        // Case 1: VietMap GeoJSON Feature
-        if (item.type === "Feature" && item.geometry && Array.isArray(item.geometry.coordinates)) {
+        // 🔥 ESSENTIAL: Case 1 - VietMap autocomplete result with ref_id (NO coordinates yet)
+        if (item && item.ref_id && (item.lat == null || item.lng == null)) {
+            const displayName = item.name || item.display || "Địa điểm chưa đặt tên";
+            const address = item.address || item.display || "Đang cập nhật địa chỉ";
+            
+            return {
+                id: item.ref_id,
+                ref_id: item.ref_id, // Store for later fetching
+                name: displayName,
+                type: item.categories?.[0] || "Địa điểm",
+                address,
+                price: "---",
+                status: "Mở cửa",
+                isOpen: true,
+                lat: null, // Mark as needing coordinates
+                lng: null,
+                needsDetails: true, // 🔥 ESSENTIAL FLAG
+                temp: "30°C",
+                weatherIcon: "fa-sun",
+                img: this._getPlaceImage(displayName, item.categories?.[0]),
+                desc: item.display || "Chưa có mô tả chi tiết."
+            };
+        }
+        
+        // 🔥 ESSENTIAL: Case 2 - VietMap place details response (HAS coordinates)
+        if (item && item.lat != null && item.lng != null && !item.type) {
+            const displayName = item.name || item.display || "Địa điểm chưa đặt tên";
+            const address = item.address || item.display || "Đang cập nhật địa chỉ";
+            
+            return {
+                id: item.ref_id || item.place_id || Date.now() + Math.random(),
+                ref_id: item.ref_id || item.place_id,
+                name: displayName,
+                type: item.categories?.[0] || "Địa điểm",
+                address,
+                price: "---",
+                status: "Mở cửa",
+                isOpen: true,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lng),
+                needsDetails: false,
+                temp: "30°C",
+                weatherIcon: "fa-sun",
+                img: this._getPlaceImage(displayName, item.categories?.[0]),
+                desc: item.display || "Chưa có mô tả chi tiết."
+            };
+        }
+
+        // Case 3: VietMap GeoJSON Feature
+        if (item && item.type === "Feature" && item.geometry && Array.isArray(item.geometry.coordinates)) {
             const coords = item.geometry.coordinates;
             const lng = Number(coords[0]);
             const lat = Number(coords[1]);
@@ -80,6 +127,7 @@ class ApiService {
                 status: "Mở cửa",
                 isOpen: true,
                 lat, lng,
+                needsDetails: false,
                 temp: "30°C", weatherIcon: "fa-sun",
                 img: this._getPlaceImage(displayName, p.layer),
                 desc: p.label || "Chưa có mô tả chi tiết."
@@ -144,17 +192,16 @@ class ApiService {
         return 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=300&q=80';
     }
 
-    // --- API 1: TÌM KIẾM ---
-   async getSuggestions(keyword = '', lat = null, lng = null) {
+    // --- API 1: SEARCH ---
+    async getSuggestions(keyword = '', lat = null, lng = null) {
         if (this.useMock) {
             const results = keyword ? MOCK_DB.filter(item => item.name.toLowerCase().includes(keyword.toLowerCase())) : MOCK_DB;
             return this._mockDelay(results);
         }
         try {
-            // 🔥 NÂNG CẤP URL: Thêm tham số focus để ưu tiên tìm gần 🔥
             let path = `/vietmap/autocomplete?text=${encodeURIComponent(keyword)}`;
             
-            // Nếu có tọa độ người dùng, gửi kèm để API biết đường mà tìm loanh quanh đó
+            // Add focus point for better location-based results
             if (lat && lng) {
                 path += `&focus.point.lat=${lat}&focus.point.lon=${lng}`;
             }
@@ -164,10 +211,9 @@ class ApiService {
             
             if (!Array.isArray(features) || features.length === 0) return [];
 
-            // Lọc bớt rác (nhưng đừng lọc gắt quá kẻo mất Bùi Viện)
+            // Basic filtering to remove obvious junk
             const filteredFeatures = features.filter(item => {
-                // Chỉ chặn những cái chắc chắn là rác
-                if (item.properties && item.properties.layer === 'venue') return true; // venue là địa điểm, lấy luôn
+                if (item.properties && item.properties.layer === 'venue') return true;
                 return true; 
             });
             return filteredFeatures.map(item => this._mapApiToApp(item));
@@ -177,7 +223,7 @@ class ApiService {
         }
     }
 
-    // --- API 2: CHI TIẾT ---
+    // --- API 2: LOCATION DETAILS ---
     async getLocationDetails(name) {
         if (this.useMock) {
             const found = MOCK_DB.find(d => d.name === name);
@@ -306,7 +352,7 @@ class ApiService {
         }
     }
 
-    // --- API 4: CHATBOT ---
+    // --- API 5: CHATBOT ---
     async chat(message, userId = null) {
         console.log(`[AI Chat] Request: "${message}"`);
         if (this.useMock) {
