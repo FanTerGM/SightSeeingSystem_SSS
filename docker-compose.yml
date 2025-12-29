@@ -1,10 +1,11 @@
-version: '3.8'
 services:
   backend:
     build: ./backend
     # Maps localhost:8000 to container:8000 (FastAPI)
     ports:
       - "8000:8000"
+    env_file:
+      - .env  
     environment:
       # We use the service name 'postgres' as the hostname
       - DATABASE_URL=postgresql://tourism_user:dev_password@postgres:5432/tourism_db
@@ -24,7 +25,7 @@ services:
     ports:
       - "3000:80"
     env_file:
-    - .env
+      - .env
   postgres:
     image: postgres:15
     environment:

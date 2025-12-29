@@ -1,4 +1,3 @@
-/* style.css */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
@@ -54,34 +53,34 @@ body {
 
 /* --- CONTROL PANEL --- */
 #control-panel {
-    width: 360px;
+    width: 380px;
     flex-shrink: 0;
     background: var(--bg-panel);
     border-right: 1px solid #dadce0;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     z-index: 20;
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.05);
 }
 
 #panel-header {
-    padding: 20px 24px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 30px 24px 20px;
+    background: #fff;
+    color: var(--primary-color);
+    border-bottom: 1px solid #eee;
 }
 
 #panel-header h2 {
     margin: 0;
-    font-size: 1.4rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
 #panel-header p {
     margin: 5px 0 0 0;
-    opacity: 0.9;
-    font-size: 0.85rem;
+    color: #888;
+    font-size: 0.9rem;
     font-weight: 500;
 }
 
@@ -93,15 +92,16 @@ body {
 
 /* Inputs */
 .input-group {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     position: relative;
 }
 
 .input-group label {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: 700;
     color: var(--text-sec);
     text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-bottom: 8px;
     display: block;
 }
@@ -110,34 +110,39 @@ body {
     position: relative;
 }
 
-.input-wrapper i {
+/* Fix icon đè chữ */
+.input-wrapper > i {
     position: absolute;
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--primary-color);
     transition: color 0.3s;
+    z-index: 2;
 }
 
 input[type="text"],
 input[type="number"],
 select {
     width: 100%;
-    padding: 12px 12px 12px 42px;
-    border: 1px solid #dadce0;
-    border-radius: 8px;
+    padding: 14px 14px 14px 42px;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 12px;
     font-family: inherit;
     font-size: 0.95rem;
     font-weight: 500;
     color: var(--text-main);
-    background: #fff;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
 }
 
 input:focus,
 select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.2);
+    box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.15);
+    background: #fff;
 }
 
 .row-group {
@@ -152,44 +157,46 @@ select:focus {
 
 /* Buttons */
 .primary-btn {
-    background: var(--accent-color);
+    background: linear-gradient(135deg, #E76F51 0%, #D64531 100%);
     color: white;
     border: none;
-    padding: 14px;
-    border-radius: 50px;
+    padding: 16px;
+    border-radius: 16px;
     width: 100%;
     font-weight: 700;
     font-size: 1rem;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(231, 111, 81, 0.3);
-    transition: transform 0.2s, box-shadow 0.2s;
-    margin-top: 25px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 10px 20px rgba(231, 111, 81, 0.3);
+    transition: all 0.3s ease;
+    margin-top: 30px;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .primary-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(231, 111, 81, 0.4);
-    background: #d65d3f;
+    transform: translateY(-3px);
+    box-shadow: 0 15px 25px rgba(231, 111, 81, 0.4);
 }
 
 .secondary-btn {
     background: white;
     color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    padding: 10px;
-    border-radius: 8px;
+    border: 2px solid #e8f5e9;
+    padding: 12px;
+    border-radius: 12px;
     width: 100%;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 15px;
     transition: all 0.2s;
 }
 
 .secondary-btn:hover {
+    border-color: var(--primary-color);
     background: #e8f5e9;
 }
 
@@ -197,7 +204,7 @@ select:focus {
 #route-steps-container {
     min-height: 180px;
     padding: 15px;
-    border: 2px dashed #dadce0;
+    border: 2px dashed #bbb;
     border-radius: var(--radius-md);
     background: #f8f9fa;
     transition: all 0.3s ease;
@@ -228,8 +235,9 @@ select:focus {
     background: white;
     padding: 12px;
     margin-bottom: 10px;
-    border-radius: 8px;
-    box-shadow: var(--shadow-sm);
+    border-radius: 12px;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -239,20 +247,23 @@ select:focus {
 }
 
 .route-step-item:hover {
-    transform: translateX(3px);
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border-color: #ddd;
 }
 
 .step-index {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     background: var(--primary-color);
     color: white;
     border-radius: 50%;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
     display: flex;
     justify-content: center;
     align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Suggestion Panel */
@@ -277,18 +288,19 @@ select:focus {
 }
 
 #suggestion-header {
-    padding: 16px 20px;
+    padding: 20px;
     border-bottom: 1px solid #f1f3f4;
     display: flex;
     align-items: center;
     gap: 12px;
     background: #fff;
+    font-size: 1.1rem;
 }
 
 #toggle-suggestion-btn {
     width: 36px;
     height: 36px;
-    border: 1px solid #eee;
+    border: 1px solid #ccc;
     background: #fff;
     border-radius: 50%;
     cursor: pointer;
@@ -318,14 +330,14 @@ select:focus {
     background: #fff;
     margin-bottom: 12px;
     border-radius: var(--radius-md);
-    border: 1px solid transparent;
+    border: 1px solid #e0e0e0;
     box-shadow: 0 1px 3px rgba(60, 64, 67, 0.1);
     cursor: grab;
     transition: all 0.2s ease;
 }
 
 .l-card:hover {
-    box-shadow: 0 4px 8px rgba(60, 64, 67, 0.15);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     transform: translateY(-2px);
     border-color: var(--primary-color);
 }
@@ -337,9 +349,10 @@ select:focus {
 .l-card img {
     width: 56px;
     height: 56px;
-    border-radius: 8px;
+    border-radius: 12px;
     object-fit: cover;
     background: #eee;
+    border: 1px solid #eee;
 }
 
 /* Map & Popup */
@@ -402,7 +415,18 @@ select:focus {
     gap: 10px;
 }
 
-/* Chat Widget */
+/* Animation Marker */
+@keyframes pulse-ring {
+    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(231, 111, 81, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(231, 111, 81, 0); }
+    100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(231, 111, 81, 0); }
+}
+
+.custom-numbered-marker div {
+    animation: pulse-ring 2s infinite;
+}
+
+/* Chat Widget - Đã fix hiển thị dọc */
 #floating-chat-btn {
     position: fixed;
     bottom: 30px;
@@ -431,27 +455,34 @@ select:focus {
     position: fixed;
     bottom: 100px;
     right: 30px;
-    width: 360px;
-    height: 520px;
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(10px);
+    width: 360px;          /* Chiều rộng cố định */
+    height: 500px;         /* Chiều cao cố định */
+    background: #fff;      /* Nền trắng */
     border-radius: 20px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
-    display: flex;
-    flex-direction: column;
-    z-index: 999;
-    transform: translateY(20px) scale(0.95);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    overflow: hidden;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+    display: none;         /* Mặc định ẩn, JS sẽ bật lên */
+    flex-direction: column; /* QUAN TRỌNG: Sắp xếp dọc */
+    z-index: 2147483647;   /* Luôn nổi trên cùng */
+    overflow: hidden;      /* Bo góc */
+    border: 1px solid #e0e0e0;
+    transform-origin: bottom right;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 body.chat-open #chat-widget {
     transform: translateY(0) scale(1);
     opacity: 1;
     visibility: visible;
+}
+
+#chat-widget.active {
+    display: flex !important;
+    animation: bounceIn 0.3s;
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 .chat-header {
@@ -544,452 +575,531 @@ body.chat-open #chat-widget {
     box-shadow: var(--shadow-md);
 }
 
-/* Ẩn các nút mobile mặc định trên PC */
-#mobile-map-toggle,
-#floating-back-btn {
-    display: none;
-}
-
 .swal2-container,
 .swal2-popup {
     display: none !important;
 }
 
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border-radius: 0 0 8px 8px;
+}
+
+.suggestion-item { 
+    padding: 10px 15px; 
+    cursor: pointer; 
+    border-bottom: 1px solid #f0f0f0; 
+    display: flex; 
+    align-items: center; 
+}
+.suggestion-item:hover { background-color: #f8f9fa; }
+.suggestion-item i { 
+    margin-right: 10px; 
+    color: #137333; 
+    position: static; 
+    flex-shrink: 0; 
+}
+.suggestion-item.current-loc { color: #4285f4; font-weight: bold; }
+
+/* --- CSS CHO DUAL RANGE SLIDER --- */
+.budget-wrapper {
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 15px 15px 5px 15px;
+    position: relative;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+.budget-wrapper .values { display: flex; justify-content: center; gap: 8px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px; font-size: 0.9rem; }
+.slider-container { position: relative; width: 100%; height: 30px; }
+.slider-track { width: 100%; height: 6px; position: absolute; top: 50%; transform: translateY(-50%); background-color: #dadce0; border-radius: 5px; pointer-events: none; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; outline: none; position: absolute; top: 50%; transform: translateY(-50%); background-color: transparent; pointer-events: none; margin: 0; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; background-color: #fff; border: 3px solid var(--primary-color); border-radius: 50%; cursor: pointer; pointer-events: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: -1px; position: relative; z-index: 10; }
+input[type="range"]::-moz-range-thumb { height: 20px; width: 20px; background-color: #fff; border: 3px solid var(--primary-color); border-radius: 50%; cursor: pointer; pointer-events: auto; }
+
+/* --- TỐI ƯU LINE CHỈ ĐƯỜNG (BỎ HIỆU ỨNG NẶNG) --- */
+path.leaflet-interactive {
+    stroke: #4285F4 !important;
+    stroke-width: 6px !important;
+    stroke-opacity: 1 !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* ĐÃ XÓA filter: drop-shadow và transition để vẽ mượt hơn */
+}
+
+path.leaflet-interactive:hover { 
+    stroke-width: 8px !important; 
+    cursor: pointer; 
+    stroke: #3367d6 !important; /* Đổi màu nhẹ khi hover thay vì hiệu ứng nặng */
+}
 /* =========================================
-   MOBILE RESPONSIVE (LOGIC MỚI + FIX UI)
+   1. ẨN NÚT ĐỔI TAY TRÊN PC (MẶC ĐỊNH)
+   ========================================= */
+#hand-toggle-btn {
+    display: none; /* Tuyệt đối không hiện trên PC */
+}
+
+/* =========================================
+   2. GIAO DIỆN MOBILE THÔNG MINH (Smart UX)
    ========================================= */
 @media (max-width: 768px) {
 
-    /* 1. XỬ LÝ PANEL HEADER (SMART TRAVEL XANH) */
-    /* Mặc định hiện ở trang nhập liệu */
-    /* Khi sang trang kết quả (view-summary), ẨN NÓ ĐI */
-    body.view-summary #panel-header {
+    /* --- CẤU TRÚC BODY CHẶT CHẼ --- */
+    body {
+        display: block !important;
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        background: #f0f0f0;
+    }
+
+    /* --- TRẠNG THÁI 1: FULL MÀN HÌNH (EXPANDED) --- */
+    .mobile-expanded {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 50 !important; /* 🔥 Tăng lên và ép buộc */
+        border-radius: 0 !important;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        overflow: hidden;
+    }
+
+    /* --- TRẠNG THÁI 2: THU NHỎ (MINIMIZED) --- */
+    .mobile-minimized {
+        position: absolute !important;
+        bottom: 100px;
+        right: 20px; 
+        width: 90px !important;
+        height: 120px !important;
+        z-index: 999 !important; /* 🔥 Cao hơn tất cả để luôn nổi */
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+        border: 3px solid white;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        background: white; /* Đảm bảo có nền trắng nếu map chưa load kịp */
+    }
+
+    /* Hiệu ứng bấm lún xuống */
+    .mobile-minimized:active {
+        transform: scale(0.95);
+    }
+
+    /* --- CHẾ ĐỘ TAY TRÁI (LEFT HAND MODE) --- */
+    /* Đảo ô nhỏ sang trái */
+    body.left-handed .mobile-minimized {
+        right: auto;
+        left: 20px;
+    }
+    
+    /* Đảo nút gạt cần sang trái */
+    body.left-handed #hand-toggle-btn {
+        right: auto;
+        left: 20px;
+    }
+
+    /* --- TÙY CHỈNH MAP KHI THU NHỎ --- */
+    #big-map.mobile-minimized {
+        /* Giữ nguyên vị trí */
+        pointer-events: auto !important; /* Bắt buộc để nhận click */
+        opacity: 1;
+        border: 3px solid white; /* Viền trắng cho đẹp */
+        z-index: 100 !important;
+    }
+
+    /* 1. ẨN CÁC NÚT ZOOM (+/-) VÀ LOGO LEAFLET KHI THU NHỎ */
+    #big-map.mobile-minimized .leaflet-control-container,
+    #big-map.mobile-minimized .leaflet-bottom {
         display: none !important;
     }
 
-    /* 2. DETAILS PANEL: Full màn hình */
+    /* 2. TẠO LỚP PHỦ VÔ HÌNH ĐỂ BẮT CLICK (FIX LỖI KHÓ BẤM) */
+    #big-map.mobile-minimized::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        /* Màu nền trong suốt (hoặc để mờ nhẹ nếu muốn: rgba(0,0,0,0.1)) */
+        background: transparent; 
+        z-index: 9999; /* Đè lên trên mọi thứ của bản đồ */
+        cursor: pointer;
+    }
+
+    /* --- TÙY CHỈNH PANEL NHẬP LIỆU KHI THU NHỎ --- */
+    /* Biến nó thành cái ô màu xanh có icon */
+    #control-panel.mobile-minimized {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-color) !important; /* Nền xanh */
+        padding: 0 !important;
+        border: 3px solid white;
+    }
+
+    /* Ẩn hết nội dung bên trong */
+    #control-panel.mobile-minimized #panel-header,
+    #control-panel.mobile-minimized #panel-content {
+        display: none !important;
+    }
+
+    /* Thêm icon đại diện */
+    #control-panel.mobile-minimized::after {
+        content: "\f015"; /* Icon Home/Menu */
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        font-size: 2rem;
+        color: white;
+    }
+
+    /* --- NÚT GẠT CẦN (CHỈ HIỆN TRÊN MOBILE) --- */
+    #hand-toggle-btn {
+        display: flex; /* Hiện lên */
+        position: fixed;
+        bottom: 25px;
+        right: 20px; /* Góc phải */
+        width: 55px;
+        height: 55px;
+        background: white;
+        color: var(--primary-color);
+        border-radius: 50%;
+        border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    #hand-toggle-btn:active {
+        transform: scale(0.9) rotate(15deg);
+    }
+
+    /* Ẩn các nút PC thừa thãi */
+    #mobile-map-toggle, 
+    #floating-back-btn,
+    #floating-chat-btn { 
+        display: none !important; 
+    }
+    
+    /* Ẩn bảng gợi ý và chi tiết mặc định để đỡ rối */
+    #suggestion-panel, #details-panel {
+        display: none !important;
+    }
+}
+/* --- MOBILE QUICK SEARCH BOX --- */
+.mobile-search-popup {
+    display: none; /* Mặc định ẩn (kể cả PC) */
+}
+
+@media (max-width: 768px) {
+    .mobile-search-popup {
+        position: fixed;
+        top: 20%; /* Nằm ở phần trên màn hình cho dễ nhìn */
+        left: 5%;
+        width: 90%;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        z-index: 99999; /* Cao nhất */
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid #eee;
+        
+        /* Hiệu ứng hiện ra */
+        opacity: 0;
+        transform: scale(0.9);
+        transition: all 0.2s ease-out;
+        pointer-events: none;
+    }
+
+    .mobile-search-popup.active {
+        display: flex;
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+    }
+
+    /* Phần Header nhập liệu */
+    .mq-header {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 10px;
+        background: #fff;
+    }
+
+    .mq-header input {
+        border: none;
+        background: transparent;
+        font-size: 1rem;
+        flex: 1;
+        outline: none;
+        padding: 5px;
+        box-shadow: none !important; /* Bỏ shadow mặc định của input cũ */
+    }
+
+    #mq-close-btn {
+        background: #f1f3f4;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        color: #5f6368;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Phần Danh sách kết quả */
+    #mq-results {
+        max-height: 200px; /* 🔥 QUAN TRỌNG: Chỉ đủ cao cho khoảng 3 dòng */
+        overflow-y: auto;  /* Dư ra thì cuộn */
+        background: #fff;
+    }
+
+    /* Item kết quả bên trong */
+    .mq-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f5f5f5;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.9rem;
+    }
+    
+    .mq-item:active {
+        background: #e8f5e9; /* Màu xanh nhạt khi bấm vào */
+    }
+
+    .mq-item i {
+        color: #2D6A4F;
+        font-size: 1.1rem;
+    }
+    
+    .mq-item div {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .mq-item small {
+        color: #888;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
+    }
+/* --- SỬA LỖI HIỂN THỊ CHI TIẾT TRÊN MOBILE --- */
+
+    /* 1. Reset hiển thị: Cho phép nó hiện lên khi có lệnh từ JS */
     #details-panel {
+        display: none; /* Mặc định ẩn, JS sẽ bật thành flex */
+        /* QUAN TRỌNG: Ghi đè các thuộc tính cũ để full màn hình */
         position: fixed !important;
         top: 0;
         left: 0;
         width: 100% !important;
         height: 100% !important;
-        z-index: 9999 !important;
+        z-index: 10000 !important; /* Cao hơn Map và các nút khác */
         border: none !important;
         border-radius: 0 !important;
+        background: #fff !important;
     }
 
+    /* 2. Đảm bảo nội dung bên trong cuộn được */
     #details-content {
-        padding-bottom: 80px !important;
-    }
-
-    /* 3. TRẠNG THÁI 1: MẶC ĐỊNH (NHẬP LIỆU) */
-    body {
-        display: flex !important;
-        flex-direction: column;
-        height: 100vh;
-        overflow: hidden;
-    }
-
-    #big-map {
-        height: 40vh !important;
-        width: 100%;
-        order: 1;
-    }
-
-    #control-panel {
-        height: 60vh !important;
-        width: 100% !important;
-        order: 2;
-        border-top: 5px solid #2D6A4F;
-        padding: 0 !important;
-        z-index: 50;
-    }
-
-    #route-builder {
-        display: block !important;
-        padding: 20px;
-        overflow-y: auto;
-    }
-
-    #route-summary,
-    #suggestion-panel {
-        display: none !important;
-    }
-
-    /* 4. TRẠNG THÁI 2: KẾT QUẢ (GRID 3 Ô) */
-    body.view-summary {
-        display: grid !important;
-        grid-template-rows: 55% 45% !important;
-        grid-template-columns: 1fr 1fr !important;
-        grid-template-areas: "map map" "route suggest";
-    }
-
-    body.view-summary #big-map {
-        grid-area: map;
-        height: 100% !important;
-    }
-
-    /* Ô Lộ Trình (Mất Header Xanh ở đây vì quy tắc số 1) */
-    body.view-summary #control-panel {
-        grid-area: route;
-        height: 100% !important;
-        border-right: 1px solid #ccc;
-        display: flex !important;
-        flex-direction: column;
-        padding: 0 !important;
-        border-top: none !important;
-        /* Bỏ viền xanh cũ */
-    }
-
-    body.view-summary #route-builder {
-        display: none !important;
-    }
-
-    body.view-summary #route-summary {
-        display: flex !important;
-        flex-direction: column;
-        height: 100%;
-        padding: 5px;
-    }
-
-    body.view-summary #route-steps-container {
-        flex: 1;
-        padding: 5px;
-        background: #fafafa;
-        border: none;
-        overflow-y: auto;
-    }
-
-    body.view-summary .route-step-item {
-        padding: 6px;
-        font-size: 0.7rem;
-        gap: 4px;
-    }
-
-    body.view-summary #route-summary h3 {
-        font-size: 0.7rem;
-        margin: 0 0 5px 0;
-        text-align: center;
-        background: #eee;
-    }
-
-    /* Ô Gợi Ý */
-    body.view-summary #suggestion-panel {
-        grid-area: suggest;
-        display: flex !important;
-        flex-direction: column;
-        position: static !important;
-        width: 100% !important;
-        height: 100% !important;
-        border-top: 3px solid #E76F51;
-        z-index: 60;
-    }
-
-    body.view-summary #suggestion-header,
-    body.view-summary #toggle-suggestion-btn {
-        display: none !important;
-    }
-
-    body.view-summary .search-box-wrapper {
-        padding: 5px;
-    }
-
-    body.view-summary .search-box-wrapper input {
-        font-size: 0.7rem;
-        height: 28px;
-    }
-
-    body.view-summary #suggestion-list {
-        padding: 5px !important;
-    }
-
-    body.view-summary .l-card {
-        padding: 4px;
-        margin-bottom: 6px;
-        flex-direction: row;
-        touch-action: none;
-    }
-
-    body.view-summary .l-card img {
-        width: 35px;
-        height: 35px;
-    }
-
-    body.view-summary .l-card h4 {
-        font-size: 0.65rem;
-        max-width: 60px;
-    }
-
-    body.view-summary .l-card p,
-    body.view-summary .l-card i {
-        display: none;
-    }
-
-    #update-map-btn,
-    #edit-route-btn,
-    #reopen-suggestion-btn,
-    #floating-chat-btn,
-    #chat-widget {
-        display: none !important;
-    }
-
-    /* 5. NÚT TOGGLE MAP (GÓC PHẢI DƯỚI) */
-    #mobile-map-toggle {
-        display: flex;
-        position: fixed;
-        bottom: 47%;
-        right: 15px;
-        width: 45px;
-        height: 45px;
-        background: #fff;
-        border: 2px solid #2D6A4F;
-        color: #2D6A4F;
-        border-radius: 50%;
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    /* 6. NÚT BACK NỔI (GÓC TRÁI DƯỚI) - MỚI */
-    /* Chỉ hiện khi đang ở view-summary */
-    body.view-summary #floating-back-btn {
-        display: flex;
-        position: fixed;
-        bottom: 47%;
-        left: 15px;
-        width: 45px;
-        height: 45px;
-        background: #fff;
-        border: 2px solid #E76F51;
-        color: #E76F51;
-        border-radius: 50%;
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    #floating-back-btn:active {
-        transform: scale(0.9);
-        background: #fff0eb;
-    }
-
-    /* 7. FULL MAP MODE */
-    body.view-summary.full-map {
-        grid-template-rows: 100% 0% !important;
-    }
-
-    body.view-summary.full-map #mobile-map-toggle {
-        bottom: 20px;
-        background: #2D6A4F;
-        color: #fff;
-        border-color: #fff;
-    }
-
-    /* Khi full map, nút Back cũng chạy xuống đáy cho đẹp */
-    body.view-summary.full-map #floating-back-btn {
-        bottom: 20px;
-        background: #E76F51;
-        color: #fff;
-        border-color: #fff;
-    }
-
-    body.view-summary.full-map #control-panel,
-    body.view-summary.full-map #suggestion-panel {
-        overflow: hidden;
-        border: none;
+        padding-bottom: 80px !important; /* Chừa chỗ dưới đáy */
     }
 }
-
-/* Enhanced route step item with drag handle */
-.route-step-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    margin: 8px 0;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 2px solid transparent;
+/* --- FIX LỖI: ẨN CÁC NÚT THỪA TRÊN PC & MOBILE --- */
+#mobile-map-toggle,
+#floating-back-btn {
+    display: none !important; /* Dùng !important để xóa sổ nó ngay lập tức */
+}
+/* --- LÀM ĐẸP DANH SÁCH GỢI Ý (AUTOCOMPLETE) --- */
+.suggestion-item {
+    padding: 12px 15px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    user-select: none;
-    /* Prevent text selection during drag */
-}
-
-.route-step-item:hover {
-    background: #e8f5e9;
-    border-color: #c8e6c9;
-    transform: translateX(4px);
-}
-
-/* Drag handle styling */
-.step-drag-handle {
+    border-bottom: 1px solid #f0f0f0;
     display: flex;
-    align-items: center;
-    cursor: grab !important;
-    padding: 8px;
-    margin-right: 8px;
-    transition: all 0.2s ease;
+    align-items: flex-start; /* Căn trên để icon không bị lệch */
+    gap: 12px;
+    transition: background 0.2s;
 }
 
-.step-drag-handle:hover {
-    background: rgba(45, 106, 79, 0.1);
-    border-radius: 4px;
+.suggestion-item:hover {
+    background-color: #f8f9fa;
 }
 
-.step-drag-handle:active {
-    cursor: grabbing !important;
+.suggestion-item i {
+    margin-top: 4px; /* Cân chỉnh icon với dòng tiêu đề */
+    color: var(--primary-color);
+    flex-shrink: 0;
 }
 
-/* Visual feedback during drag */
-.route-step-item.dragging {
-    opacity: 0.4;
-    border: 2px dashed #2D6A4F;
-}
-
-/* Placeholder for drop position */
-.route-step-placeholder {
-    height: 60px;
-    background: linear-gradient(90deg, #e8f5e9 0%, #c8e6c9 100%);
-    border: 2px dashed #2D6A4F;
-    border-radius: 8px;
-    margin: 8px 0;
-    animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 0.6;
-    }
-
-    50% {
-        opacity: 1;
-    }
-}
-
-/* Drop zone highlighting */
-.route-step-item.drag-over-top {
-    border-top: 3px solid #2D6A4F;
-}
-
-.route-step-item.drag-over-bottom {
-    border-bottom: 3px solid #2D6A4F;
-}
-
-/* Step index badge */
-.step-index {
+/* Phần nội dung chữ bên phải icon */
+.suggestion-content {
+    flex: 1;
+    min-width: 0; /* Quan trọng để text-overflow hoạt động */
     display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #2D6A4F 0%, #52b788 100%);
-    color: white;
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 0.85rem;
-    margin-right: 12px;
-    box-shadow: 0 2px 4px rgba(45, 106, 79, 0.2);
+    flex-direction: column;
 }
 
-/* First step indicator */
-.route-step-item:first-child .step-index {
-    background: linear-gradient(135deg, #2D6A4F 0%, #1b5e3f 100%);
-}
-
-/* Last step indicator */
-.route-step-item:last-child .step-index {
-    background: linear-gradient(135deg, #C5221F 0%, #e74c3c 100%);
-}
-
-/* Trash icon hover effect */
-.route-step-item .fa-trash-alt {
-    color: #dadce0;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    padding: 8px;
-    border-radius: 4px;
-}
-
-.route-step-item .fa-trash-alt:hover {
-    color: var(--danger-color);
-    background: rgba(197, 34, 31, 0.1);
-}
-
-/* Container drag state */
-#route-steps-container.dragging-active {
-    background: #f1f8f4;
-    border: 2px dashed #2D6A4F;
-    border-radius: 8px;
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .route-step-item {
-        padding: 10px 12px;
-        margin: 6px 0;
-    }
-
-    .step-drag-handle {
-        padding: 6px;
-        margin-right: 6px;
-    }
-
-    .step-index {
-        min-width: 24px;
-        height: 24px;
-        font-size: 0.75rem;
-        margin-right: 8px;
-    }
-}
-
-/* Touch device enhancements */
-@media (hover: none) and (pointer: coarse) {
-    .step-drag-handle {
-        padding: 12px;
-        /* Make drag handle larger on touch devices */
-    }
-
-    .route-step-item {
-        padding: 14px 12px;
-        /* More space for easier touch interaction */
-    }
-}
-
-/* Animation for newly added items */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.route-step-item {
-    animation: slideIn 0.3s ease-out;
-}
-
-/* Empty state message */
-#route-steps-container:empty::before {
-    content: "Kéo thả địa điểm vào đây hoặc tạo lộ trình mới";
+.suggestion-content strong {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    font-weight: 600;
+    margin-bottom: 3px;
+    
+    /* Tự động cắt dòng nếu quá dài */
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: block;
-    text-align: center;
-    padding: 40px 20px;
-    color: #888;
-    font-style: italic;
-    border: 2px dashed #ddd;
-    border-radius: 8px;
-    background: #f8f9fa;
 }
+
+.suggestion-content small {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.3;
+    
+    /* Giới hạn hiển thị tối đa 2 dòng cho địa chỉ */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* --- LÀM ĐẸP BẢNG CHI TIẾT (DETAILS PANEL) --- */
+.detail-title-group {
+    margin-bottom: 15px;
+}
+
+.detail-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0 0 8px 0;
+    line-height: 1.4;
+}
+
+.detail-address {
+    display: flex;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: #555;
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 8px;
+    line-height: 1.5;
+}
+
+.detail-address i {
+    color: var(--danger-color);
+    margin-top: 3px;
+}
+/* =========================================================
+   MOBILE UX: TỐI ƯU VỊ TRÍ NÚT BẤM & CHẾ ĐỘ TAY TRÁI
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    /* --- 1. CHỈNH LẠI VỊ TRÍ NÚT ZOOM (+ -) CHO THUẬN TAY (Mặc định) --- */
+    /* Mặc định Leaflet để trên cùng bên trái -> Rất khó bấm */
+    /* Ta sẽ đưa nó xuống DƯỚI GÓC PHẢI, nằm ngay trên cái bảng Home vuông */
+    .leaflet-control-zoom {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 225px !important; /* Cao hơn bảng Home (100+110+15px) */
+        right: 20px !important;
+        left: auto !important;
+        margin: 0 !important;
+        z-index: 1000 !important;
+        border: 2px solid rgba(0,0,0,0.2) !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+    }
+
+    /* ---------------------------------------------------------
+       2. CHẾ ĐỘ TAY TRÁI (KHI BẤM NÚT BÀN TAY)
+       --------------------------------------------------------- */
+    
+    /* A. Đảo ngược danh sách lộ trình (Thùng rác sang Trái) */
+    body.left-handed .route-step-item {
+        flex-direction: row-reverse !important;
+    }
+    body.left-handed .route-step-item > i.fa-trash,
+    body.left-handed .route-step-item > i.fa-trash-alt {
+        margin-left: 0 !important;
+        margin-right: 15px !important; 
+    }
+    
+    /* B. Đảo ngược tiêu đề (Nút Thêm điểm sang Trái) */
+    body.left-handed #route-summary > div:first-child {
+        flex-direction: row-reverse !important;
+    }
+
+    /* C. Đảo ngược vị trí Nút Zoom (Sang Trái) */
+    body.left-handed .leaflet-control-zoom {
+        right: auto !important;
+        left: 20px !important; /* Chuyển sang trái cho ngón cái tay trái */
+    }
+
+    /* D. Đảm bảo các nút chức năng khác cũng đảo theo (phòng hờ) */
+    body.left-handed .mobile-minimized {
+        right: auto !important;
+        left: 20px !important;
+    }
+    body.left-handed #hand-toggle-btn {
+        right: auto !important;
+        left: 20px !important;
+    }
+}
+@media (max-width: 768px) {
+    /* Mặc định nút đóng ở bên phải trên Mobile */
+    #close-details-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        left: auto; /* Đảm bảo không bị dính left từ PC */
+        z-index: 1001;
+    }
+
+    /* Khi bật chế độ tay trái trên Mobile, nút X nhảy sang trái */
+    body.left-handed #close-details-btn {
+        right: auto;
+        left: 15px;
+    }
+
+    /* (Tùy chọn) Chuyển cả tiêu đề địa điểm để không bị nút X đè */
+    body.left-handed #details-content h2 {
+        padding-left: 40px;
+        padding-right: 0;
+    }
+}
+
+/* --- TRÊN PC GIỮ NGUYÊN --- */
+/*@media (min-width: 769px) {
+    #close-details-btn {*/
+        /* Giữ vị trí cố định của PC ở đây */
+        /*right: 20px;
+    }
+}*/
