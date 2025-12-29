@@ -11,60 +11,22 @@ class AppController {
             route: [],
             allSuggestions: [],
             isRouting: false,
-            userLocation: null // 🔥 NEW: Lưu vị trí người dùng
+            userLocation: null // GPS location tracking
         };
         this.init();
     }
-    // --- Hàm lấy tọa độ từ Input hoặc Database ---
-    async getPointData(input, label) {
-        if (!input || !input.value.trim()) return null;
 
-        const inputValue = input.value.trim().toLowerCase();
-
-        // 🔥 LOGIC FIX BUG: Tìm xem cái tên user nhập có khớp với điểm nào trong DATABASE không
-        const localMatch = LOCAL_PLACES.find(p =>
-            p.name.toLowerCase() === inputValue ||
-            inputValue.includes(p.name.toLowerCase())
-        );
-
-        if (localMatch) {
-            console.log("✅ Đã khớp điểm nhập liệu với Database xịn:", localMatch.name);
-            return {
-                ...localMatch, // Lấy toàn bộ desc, img, price... từ database.js
-                id: label + '-' + Date.now() + Math.random()
-            };
-        }
-
-        // Nếu không có trong DB xịn, thì mới dùng dữ liệu tạm từ API/Dataset của Input
-        if (input.dataset.lat && input.dataset.lng) {
-            return {
-                id: label + '-' + Date.now() + Math.random(),
-                name: input.value,
-                lat: parseFloat(input.dataset.lat),
-                lng: parseFloat(input.dataset.lng),
-                address: input.value,
-                // Gán giá trị mặc định để không bị trắng bảng thông tin
-                img: 'https://via.placeholder.com/500x300?text=Smart+Travel',
-                desc: 'Địa điểm này chưa có mô tả chi tiết.',
-                price: 'Miễn phí'
-            };
-        }
-
-        // Cuối cùng mới gọi chi tiết từ API
-        const apiDetails = await apiService.getLocationDetails(input.value);
-        return {
-            ...apiDetails,
-            img: apiDetails.img || 'https://via.placeholder.com/500x300?text=No+Image',
-            desc: apiDetails.desc || 'Chưa có mô tả chi tiết.',
-            price: apiDetails.price || 'Miễn phí'
-        };
-    }
     async init() {
+        console.log("App đang khởi động...");
+        console.log("API Base URL:", apiService.baseUrl);
+        console.log("Mock Mode:", apiService.useMock);
+
         this.setupEventListeners();
         this.setupInputAutocomplete();
         this.setupBudgetSlider(); 
         this.setupRadiusSlider(); 
         
+        // Hide panels initially
         const toggleBtn = document.getElementById('toggle-suggestion-btn');
         const panel = document.getElementById('suggestion-panel');
         const detailsPanel = document.getElementById('details-panel');
@@ -76,31 +38,74 @@ class AppController {
         this.setupMobileUX();
         this.setupMobileQuickSearch(); 
 
-        // 🔥 NEW: Lấy GPS ngay lập tức
+        // 🔥 Get GPS location immediately
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     this.state.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    console.log("📍 Đã có tọa độ gốc:", this.state.userLocation);
+                    console.log("📍 Got GPS location:", this.state.userLocation);
                 },
-                (err) => console.warn("Không lấy được GPS, tìm kiếm sẽ kém chính xác.")
+                (err) => console.warn("Couldn't get GPS, search will be less accurate.")
             );
         }
 
         await this.loadInitialData();
     }
-    // --- 1. HÀM HIỂN THỊ CHI TIẾT (Dán vào trong Class AppController) ---
+
+    // --- UNIFIED POINT DATA GETTER ---
+    async getPointData(input, label) {
+        if (!input || !input.value.trim()) return null;
+
+        const inputValue = input.value.trim().toLowerCase();
+
+        // 🔥 PRIORITY 1: Check LOCAL_PLACES database first
+        const localMatch = LOCAL_PLACES.find(p =>
+            p.name.toLowerCase() === inputValue ||
+            inputValue.includes(p.name.toLowerCase())
+        );
+
+        if (localMatch) {
+            console.log("✅ Matched input with local database:", localMatch.name);
+            return {
+                ...localMatch,
+                id: label + '-' + Date.now() + Math.random()
+            };
+        }
+
+        // PRIORITY 2: Use dataset coordinates if available
+        if (input.dataset.lat && input.dataset.lng) {
+            return {
+                id: label + '-' + Date.now() + Math.random(),
+                name: input.value,
+                lat: parseFloat(input.dataset.lat),
+                lng: parseFloat(input.dataset.lng),
+                address: input.value,
+                img: 'https://via.placeholder.com/500x300?text=Smart+Travel',
+                desc: 'Địa điểm này chưa có mô tả chi tiết.',
+                price: 'Miễn phí'
+            };
+        }
+
+        // PRIORITY 3: Fetch from API as last resort
+        const apiDetails = await apiService.getLocationDetails(input.value);
+        return {
+            ...apiDetails,
+            img: apiDetails.img || 'https://via.placeholder.com/500x300?text=No+Image',
+            desc: apiDetails.desc || 'Chưa có mô tả chi tiết.',
+            price: apiDetails.price || 'Miễn phí'
+        };
+    }
+
+    // --- SHOW LOCATION DETAILS PANEL ---
     showDetails(loc) {
         const panel = document.getElementById('details-panel');
         const content = document.getElementById('details-content');
-        const closeBtn = document.getElementById('close-details-btn'); // Nút có sẵn trong HTML
+        const closeBtn = document.getElementById('close-details-btn');
 
         if (!panel || !content) return;
 
-        // Hiện bảng
         panel.style.setProperty('display', 'flex', 'important');
 
-        // Đổ nội dung (Đã xóa nút X thừa ở đây)
         content.innerHTML = `
         <img src="${loc.img || 'https://via.placeholder.com/500x300'}" 
              style="width:100%; border-radius:12px; margin-bottom:15px; object-fit:cover; height:200px;">
@@ -115,26 +120,26 @@ class AppController {
         
         <p style="font-weight:700; color:var(--accent-color); margin-top:10px;">Giá: ${loc.price || 'Miễn phí'}</p>
         
-        <button onclick="window.App.ui.addChatMessage('Kể cho tôi về ${loc.name}', 'user')" 
+        <button onclick="window.App.openChatContext('${loc.name}')" 
                 style="width:100%; margin-top:15px; padding:12px; border-radius:10px; border:1px solid var(--primary-color); background:white; color:var(--primary-color); font-weight:600; cursor:pointer;">
             <i class="fas fa-robot"></i> Hỏi AI
         </button>
     `;
 
-        // Gán sự kiện đóng cho cái nút X CÓ SẴN trong Header (ID: close-details-btn)
         if (closeBtn) {
             closeBtn.onclick = () => {
                 panel.style.setProperty('display', 'none', 'important');
             };
         }
     }
+
     async loadInitialData() {
         try {
             const lat = this.state.userLocation?.lat || 10.7769;
             const lng = this.state.userLocation?.lng || 106.6953;
-            const radius = parseInt(document.getElementById('radius-slider').value) || 20;
+            const radius = parseInt(document.getElementById('radius-slider')?.value) || 20;
 
-            // 🔥 Ưu tiên lọc từ Database cục bộ thay vì gọi API tìm chữ "Du lịch"
+            // Load from LOCAL_PLACES filtered by radius
             let suggestions = LOCAL_PLACES.filter(place => {
                 return this._getDistance(lat, lng, place.lat, place.lng) <= radius;
             });
@@ -145,76 +150,17 @@ class AppController {
             this.updateSuggestionUI();
             this.map.drawMarkers(this.state.allSuggestions);
         } catch (error) {
-            console.error("Lỗi load data đầu:", error);
+            console.error("Error loading initial data:", error);
         }
     }
 
-    // --- CÁC HÀM HỖ TRỢ ---
-
+    // --- HELPER FUNCTIONS ---
     _cleanAddress(name, address) {
         if (!address) return '';
         if (address.toLowerCase().startsWith(name.toLowerCase())) {
             return address.substring(name.length).replace(/^[\s,.-]+/, '');
         }
         return address;
-    }
-
-    _cleanNameForSearch(name) {
-        let clean = name;
-        const prefixes = ['Khu du lịch', 'Du lịch sinh thái', 'Du lịch', 'Khu vui chơi', 'Công viên', 'Thành phố', 'Tỉnh', 'Vị trí của tôi'];
-        prefixes.forEach(p => {
-            const regex = new RegExp(`^${p}\\s+`, 'i');
-            clean = clean.replace(regex, '');
-        });
-        // Loại bỏ tọa độ trong ngoặc (nếu có)
-        clean = clean.replace(/\s*\(.*?\)\s*/g, '');
-        if (clean.length > 25) {
-            clean = clean.split(' ').slice(0, 3).join(' ');
-        }
-        return clean.trim();
-    }
-
-    _getCategory(name) {
-        const n = name.toLowerCase();
-        if (n.includes('hotel') || n.includes('khách sạn') || n.includes('homestay') || n.includes('resort') || n.includes('nhà nghỉ') || n.includes('villa')) return 'hotel';
-        if (n.includes('cafe') || n.includes('coffee') || n.includes('cà phê') || n.includes('trà') || n.includes('tea') || n.includes('highlands') || n.includes('starbucks')) return 'cafe';
-        if (n.includes('bún') || n.includes('phở') || n.includes('cơm') || n.includes('nhà hàng') || n.includes('quán') || n.includes('lẩu') || n.includes('nướng') || n.includes('pizza') || n.includes('buffet') || n.includes('ăn vặt') || n.includes('ẩm thực')) return 'food';
-        if (n.includes('bar') || n.includes('pub') || n.includes('club') || n.includes('beer') || n.includes('lounge') || n.includes('karaoke')) return 'nightlife';
-        // Mặc định còn lại là sight (tham quan)
-        return 'sight'; 
-    }
-
-    // 🔥 SIÊU BỘ LỌC RÁC: CHẶN SỐ NHÀ, TÊN ĐƯỜNG 🔥
-    _isIgnoredPlace(name) {
-        const lowerName = name.toLowerCase();
-        
-        // 1. Chặn tên bắt đầu bằng số (VD: "141/19...", "20 Đường...")
-        if (/^\d+[\/\s]/.test(name)) return true;
-
-        // 2. Chặn các từ khóa chỉ địa chỉ/vị trí
-        if (lowerName.startsWith('vị trí') || 
-            lowerName.startsWith('đường ') || 
-            lowerName.startsWith('hẻm ') || 
-            lowerName.startsWith('ngõ ') ||
-            lowerName.startsWith('ngách ') ||
-            lowerName.startsWith('tổ ') ||
-            lowerName.startsWith('khu phố')) {
-            return true;
-        }
-
-        // 3. Blacklist địa điểm không phải du lịch
-        const blacklist = [
-            'bách hóa', 'winmart', 'vinmart', 'circle k', 'family', 'ministop', 'đại lý', 'tạp hóa', 'gs25', '7-eleven', 'co.op',
-            'atm', 'bank', 'ngân hàng', 'giao dịch', 'tín dụng', 'kho bạc', 'agribank', 'vietcombank', 'bidv', 'techcombank',
-            'nhà thuốc', 'dược', 'pharma', 'long châu', 'bệnh viện', 'phòng khám', 'nha khoa', 'y tế', 'bác sĩ',
-            'xăng dầu', 'petrolimex', 'rửa xe', 'garage', 'bãi xe', 'giữ xe', 'honda', 'yamaha', 'sửa xe', 'lốp',
-            'sân bay', 'cảng hàng không', 'phi trường', 'ga tàu', 'nhà ga', 'bến xe', 'trạm xe', 'bến phà', 'airport',
-            'trường', 'mầm non', 'đại học', 'cao đẳng', 'trung tâm anh ngữ', 'dạy nghề', 'thpt', 'thcs',
-            'công ty', 'văn phòng', 'tnhh', 'cổ phần', 'chi nhánh', 'trụ sở', 'bất động sản', 
-            'ủy ban', 'công an', 'ubnd', 'sở', 'phòng', 'ban', 'trạm điện', 'nhà máy', 'kho', 'thôn', 'xã', 'phường'
-        ];
-        
-        return blacklist.some(badWord => lowerName.includes(badWord));
     }
 
     _getDistance(lat1, lon1, lat2, lon2) {
@@ -233,58 +179,125 @@ class AppController {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // --- 1. QUẢN LÝ LỘ TRÌNH ---
+    // --- ROUTE MANAGEMENT ---
 
-    addLocationToRoute(loc, refresh = true) {
-        if (!loc || !loc.lat) return;
-        this.state.route.push(loc);
-        this.ui.addStepItem(loc, (item) => this.removeLocation(item));
-        if (refresh) this.refreshMapState();
+    // 🔥 ESSENTIAL: Coordinate fetching for VietMap places with ref_id
+    async addLocationToRoute(locationData, shouldRefreshMap = true) {
+        const exists = this.state.route.find(i => i.id === locationData.id);
+        if (exists) {
+            console.log("Location already in route:", locationData.name);
+            return;
+        }
+
+        console.log("Adding location to route:", locationData.name);
+
+        let validLocation = locationData;
+
+        // 🔥 ESSENTIAL: If location needs details (has ref_id but no coords), fetch them
+        if (locationData.needsDetails && locationData.ref_id) {
+            console.log(`Fetching coordinates for ${locationData.name} using ref_id...`);
+            try {
+                const details = await apiService.getPlaceDetails(locationData.ref_id);
+                validLocation = {
+                    ...locationData,
+                    ...details,
+                    lat: details.lat,
+                    lng: details.lng,
+                    needsDetails: false
+                };
+                console.log(`✓ Coordinates fetched: ${details.lat}, ${details.lng}`);
+            } catch (err) {
+                console.error("Failed to get place details:", err);
+                alert(`Không thể lấy tọa độ cho: ${locationData.name}`);
+                return;
+            }
+        } else if (validLocation.lat == null || validLocation.lng == null ||
+            isNaN(validLocation.lat) || isNaN(validLocation.lng)) {
+            console.warn(`Location ${locationData.name} has invalid coordinates`);
+            alert(`Địa điểm "${locationData.name}" không có tọa độ hợp lệ`);
+            return;
+        }
+
+        this.state.route.push(validLocation);
+        this.ui.addStepItem(validLocation, (deletedItem) => {
+            this.removeLocation(deletedItem);
+        });
+        this.updateSuggestionUI();
+        if (shouldRefreshMap) {
+            await this.refreshMapState();
+        }
     }
 
     removeLocation(itemToRemove) {
+        console.log("Removing location from route:", itemToRemove.name);
         this.state.route = this.state.route.filter(item => item.id !== itemToRemove.id);
         this.updateSuggestionUI();
         this.refreshMapState();
     }
 
     async refreshMapState() {
-        this.map.drawMarkers(this.state.route);
-        if (this.state.route.length >= 2) {
-            const res = await apiService.calculateRoute(this.state.route);
-            if (res && res.path) this.map.drawPolyline(res.path);
-        } else {
-            if (this.map.clearPolylineOnly) this.map.clearPolylineOnly();
+        console.log("Refreshing map. Route has", this.state.route.length, "locations");
+        const updateBtn = document.getElementById('update-map-btn');
+        if (updateBtn) this.ui.setLoading(updateBtn, true);
+
+        try {
+            // Validate all coordinates
+            const validRoute = this.state.route.filter(point => {
+                const lat = parseFloat(point.lat);
+                const lng = parseFloat(point.lng);
+                return !isNaN(lat) && !isNaN(lng);
+            });
+
+            if (validRoute.length < this.state.route.length) {
+                console.warn(`Some points skipped. Valid: ${validRoute.length}/${this.state.route.length}`);
+            }
+
+            // Always draw markers
+            this.map.drawMarkers(validRoute);
+
+            // Calculate route if 2+ points
+            if (validRoute.length >= 2) {
+                console.log("Calculating route between", validRoute.length, "points...");
+                const routeResult = await apiService.calculateRoute(validRoute);
+
+                if (routeResult && routeResult.path && routeResult.path.length > 0) {
+                    console.log("Route calculated. Path has", routeResult.path.length, "points");
+                    this.map.drawPolyline(routeResult.path);
+                } else {
+                    console.warn("No route path returned from API");
+                }
+            } else {
+                console.log("ℹ Need at least 2 valid locations to calculate route");
+                if (this.map.clearPolylineOnly) this.map.clearPolylineOnly();
+            }
+        } catch (err) {
+            console.error("Error refreshing map:", err);
+            alert("Không thể tính toán lộ trình. Vui lòng thử lại.");
+        } finally {
+            if (updateBtn) setTimeout(() => this.ui.setLoading(updateBtn, false), 500);
         }
     }
-
-    // js/main.js
 
     updateSuggestionUI() {
         if (!this.ui || !this.ui.renderSuggestionList) return;
 
-        // 1. Xác định tọa độ gốc để tính KM 
-        // Ưu tiên: Điểm khởi hành trong lộ trình -> Vị trí GPS -> Mặc định Dinh Độc Lập
+        // Calculate distances from starting point
         const startPoint = this.state.route[0];
         const baseLat = startPoint ? startPoint.lat : (this.state.userLocation?.lat || 10.7769);
         const baseLng = startPoint ? startPoint.lng : (this.state.userLocation?.lng || 106.6953);
 
-        // 2. Gán thêm trường distance (khoảng cách) vào mỗi địa điểm
         const suggestionsWithDist = this.state.allSuggestions.map(place => ({
             ...place,
             distance: this._getDistance(baseLat, baseLng, place.lat, place.lng)
         }));
 
-        // 3. Sắp xếp danh sách: Gần nhất nằm trên cùng
+        // Sort by distance (nearest first)
         suggestionsWithDist.sort((a, b) => a.distance - b.distance);
 
-        // 4. Lấy danh sách ID đã có trong lộ trình để ẩn nút hoặc làm mờ
         const currentRouteIds = this.state.route.map(item => item.id);
-
-        // 5. Truyền sang UI để vẽ lại danh sách có kèm số KM
         this.ui.renderSuggestionList(suggestionsWithDist, currentRouteIds);
 
-        // 6. Quan trọng: Gán lại sự kiện click và kéo thả cho các thẻ mới vừa vẽ
+        // Reattach event handlers
         this._reattachDragEvents();
     }
 
@@ -293,17 +306,16 @@ class AppController {
         if (!container) return;
 
         Array.from(container.children).forEach((card) => {
-            // Lấy ID từ thuộc tính data-id (Đảm bảo ui.js đã render có attribute này)
             const placeId = card.getAttribute('data-id');
             const locationData = this.state.allSuggestions.find(p => String(p.id) === String(placeId));
 
             if (locationData) {
-                // 🔥 THÊM MỚI: Sự kiện CLICK để xem chi tiết
+                // Click to view details
                 card.onclick = () => {
                     this.showDetails(locationData);
                 };
 
-                // GIỮ NGUYÊN: Sự kiện KÉO THẢ
+                // Drag and drop
                 card.setAttribute('draggable', 'true');
                 card.style.cursor = 'grab';
                 card.ondragstart = (e) => {
@@ -315,7 +327,7 @@ class AppController {
         });
     }
 
-    // --- 2. SLIDERS ---
+    // --- SLIDERS ---
     setupBudgetSlider() {
         const slider1 = document.getElementById("slider-1");
         const slider2 = document.getElementById("slider-2");
@@ -340,7 +352,6 @@ class AppController {
             }
             val1 = parseInt(slider1.value);
             val2 = parseInt(slider2.value);
-            // Sửa lại ID hiển thị nếu cần thiết, đảm bảo HTML có range1/range2
             const r1 = document.getElementById("range1");
             const r2 = document.getElementById("range2");
             if(r1) r1.textContent = formatMoney(val1);
@@ -375,7 +386,7 @@ class AppController {
         updateRadius(); 
     }
 
-    // --- 3. MOBILE SEARCH & AUTOCOMPLETE ---
+    // --- MOBILE QUICK SEARCH ---
     setupMobileQuickSearch() {
         const popup = document.getElementById('mobile-quick-search');
         const input = document.getElementById('mq-input');
@@ -410,7 +421,6 @@ class AppController {
             clearTimeout(timeout);
             timeout = setTimeout(async () => {
                 try {
-                    // 🔥 CƠ CHẾ MỚI: Gọi searchPlaces để ưu tiên Database xịn
                     const results = await this.searchPlaces(keyword);
 
                     list.innerHTML = '';
@@ -422,11 +432,7 @@ class AppController {
                     results.forEach(loc => {
                         const div = document.createElement('div');
                         div.className = 'suggestion-item';
-
-                        // Xử lý địa chỉ hiển thị
                         const cleanAddr = loc.address || 'Việt Nam';
-
-                        // Hiển thị icon Star nếu là hàng từ Database xịn
                         const icon = loc.desc ? 'fa-star' : 'fa-map-marker-alt';
                         const iconColor = loc.desc ? '#ffc107' : '#666';
 
@@ -439,7 +445,6 @@ class AppController {
                         `;
 
                         div.onclick = () => {
-                            // Khi chọn điểm trên mobile, thêm vào lộ trình và đóng popup
                             this.addLocationToRoute(loc);
                             popup.classList.remove('active');
                             input.value = '';
@@ -454,7 +459,7 @@ class AppController {
         });
     }
 
-  setupInputAutocomplete() {
+    setupInputAutocomplete() {
         const routeConfigs = [
             { inputId: 'start-point', listId: 'start-suggestions-list' },
             { inputId: 'end-point', listId: 'end-suggestions-list' }
@@ -465,17 +470,17 @@ class AppController {
             const list = document.getElementById(cfg.listId);
             if (!input || !list) return;
 
-            // 🔥 MỚI: Khi nhấp chuột vào (Focus) là hiện gợi ý ngay
+            // Show suggestions on focus
             input.addEventListener('focus', () => {
                 this.renderAutocompleteResults(input, list, input.value.trim());
             });
 
             input.addEventListener('click', (e) => {
-                e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+                e.stopPropagation();
                 this.renderAutocompleteResults(input, list, input.value.trim());
             });
 
-            // Khi gõ phím
+            // Update on typing
             let timer;
             input.addEventListener('input', (e) => {
                 const kw = e.target.value.trim();
@@ -488,7 +493,7 @@ class AppController {
                 }, 300);
             });
 
-            // Đóng danh sách khi nhấp ra ngoài
+            // Close on outside click
             document.addEventListener('click', (e) => {
                 if (!input.contains(e.target) && !list.contains(e.target)) {
                     list.style.display = 'none';
@@ -497,47 +502,45 @@ class AppController {
         });
     }
 
-    // 🔥 PHẢI THÊM HÀM NÀY VÀO TRONG AppController 🔥
-   async searchPlaces(keyword) {
-    if (!keyword) return [];
-    const searchKey = keyword.toLowerCase().trim();
-    
-    // 🔥 CẢI TIẾN: Tìm kiếm mờ (Fuzzy Search) trong Database cục bộ
-    // Chỉ cần tên trong DB chứa từ khóa bạn gõ là nó sẽ ưu tiên hiện DB
-    const localResults = LOCAL_PLACES.filter(place => {
-        const nameMatch = place.name.toLowerCase().includes(searchKey);
-        const addrMatch = place.address.toLowerCase().includes(searchKey);
-        return nameMatch || addrMatch;
-    });
+    async searchPlaces(keyword) {
+        if (!keyword) return [];
+        const searchKey = keyword.toLowerCase().trim();
+        
+        // Search in LOCAL_PLACES first
+        const localResults = LOCAL_PLACES.filter(place => {
+            const nameMatch = place.name.toLowerCase().includes(searchKey);
+            const addrMatch = place.address.toLowerCase().includes(searchKey);
+            return nameMatch || addrMatch;
+        });
 
-    // Nếu tìm thấy trong Database, trả về luôn (Không cho API có cơ hội chạy)
-    if (localResults.length > 0) {
-        console.log("✅ Ưu tiên lấy từ Database cục bộ:", localResults.length);
-        return localResults;
-    }
-
-    // Nếu Database không có bất kỳ chữ nào liên quan, mới gọi API
-    try {
-        const lat = this.state.userLocation?.lat || 10.7769;
-        const lng = this.state.userLocation?.lng || 106.6953;
-        const apiRes = await apiService.getSuggestions(keyword, lat, lng);
-        if (apiRes && Array.isArray(apiRes)) {
-            return apiRes.filter(item => !this._isIgnoredPlace(item.name));
+        // If found in database, return immediately
+        if (localResults.length > 0) {
+            console.log("✅ Found in local database:", localResults.length);
+            return localResults;
         }
-    } catch (e) { console.warn("Lỗi API:", e); }
-    return [];
-}
+
+        // Otherwise call API
+        try {
+            const lat = this.state.userLocation?.lat || 10.7769;
+            const lng = this.state.userLocation?.lng || 106.6953;
+            const apiRes = await apiService.getSuggestions(keyword, lat, lng);
+            if (apiRes && Array.isArray(apiRes)) {
+                return apiRes;
+            }
+        } catch (e) { console.warn("API error:", e); }
+        return [];
+    }
 
     async renderAutocompleteResults(inputEl, listEl, keyword) {
         listEl.innerHTML = '';
         listEl.style.display = 'block';
 
-        // 🔥 TRƯỜNG HỢP 1: Khi nhấp vào ô trống (keyword rỗng)
+        // If empty, show current location + quick picks
         if (!keyword) {
-            // 1. Thêm mục Vị trí hiện tại
+            // Current location option
             const currentLocItem = document.createElement('div');
             currentLocItem.className = 'suggestion-item current-loc';
-            currentLocItem.style.background = '#f0f9f4'; // Màu nền nổi bật
+            currentLocItem.style.background = '#f0f9f4';
             currentLocItem.innerHTML = `
                 <i class="fas fa-crosshairs" style="color: var(--primary-color);"></i>
                 <div class="suggestion-content">
@@ -546,7 +549,7 @@ class AppController {
             currentLocItem.onclick = () => this.handleUseCurrentLocation(inputEl, listEl);
             listEl.appendChild(currentLocItem);
 
-            // 2. Thêm 5 địa điểm nổi bật từ Database để chọn nhanh
+            // Quick picks from database
             const quickPicks = LOCAL_PLACES.slice(0, 5); 
             quickPicks.forEach(loc => {
                 const item = document.createElement('div');
@@ -568,7 +571,7 @@ class AppController {
             return;
         }
 
-        // 🔥 TRƯỜNG HỢP 2: Khi đang gõ chữ (Dùng hàm searchPlaces thông minh đã sửa trước đó)
+        // Search results
         try {
             const results = await this.searchPlaces(keyword);
             if (!results || results.length === 0) {
@@ -602,7 +605,6 @@ class AppController {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
-                // Cập nhật UserLocation
                 this.state.userLocation = { lat: latitude, lng: longitude };
                 
                 inputEl.value = `Vị trí của tôi (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
@@ -619,11 +621,12 @@ class AppController {
         const mapEl = document.getElementById('big-map');
         const panelEl = document.getElementById('control-panel');
         const handBtn = document.getElementById('hand-toggle-btn');
-        const body = document.body;
         if (!mapEl || !panelEl) return;
+        
         panelEl.classList.add('mobile-expanded');
         mapEl.classList.add('mobile-minimized');
         setTimeout(() => { if(this.map && this.map.map) this.map.map.invalidateSize(); }, 500);
+        
         const swapView = () => {
             if (mapEl.classList.contains('mobile-minimized')) {
                 mapEl.classList.remove('mobile-minimized'); mapEl.classList.add('mobile-expanded');
@@ -634,9 +637,10 @@ class AppController {
                 panelEl.classList.remove('mobile-minimized'); panelEl.classList.add('mobile-expanded');
             }
         };
+        
         mapEl.onclick = (e) => { if (mapEl.classList.contains('mobile-minimized')) { e.stopPropagation(); swapView(); } };
         panelEl.onclick = (e) => { if (panelEl.classList.contains('mobile-minimized')) { swapView(); } };
-        if (handBtn) { handBtn.onclick = () => { body.classList.toggle('left-handed'); if (navigator.vibrate) navigator.vibrate(50); }; }
+        if (handBtn) { handBtn.onclick = () => { document.body.classList.toggle('left-handed'); if (navigator.vibrate) navigator.vibrate(50); }; }
     }
 
     async handleFormSubmit(e) {
@@ -644,7 +648,6 @@ class AppController {
         if (this.map) this.map.clearRoute();
 
         try {
-            // --- 1. LẤY THÔNG SỐ ĐẦU VÀO (Gộp lại 1 lần) ---
             const startInput = document.getElementById('start-point');
             const endInput = document.getElementById('end-point');
             const radius = parseInt(document.getElementById('radius-slider').value) || 20;
@@ -652,13 +655,14 @@ class AppController {
             const maxB = parseInt(document.getElementById('slider-2').value) || 5000000;
             const numStops = parseInt(document.getElementById('waypointCount').value) || 0;
 
-            // --- 2. XÁC ĐỊNH ĐIỂM ĐI & ĐIỂM ĐẾN ---
+            // Get start point
             let p1 = await this.getPointData(startInput, 'start');
             if (!p1) throw new Error("Vui lòng nhập điểm khởi hành");
 
+            // Get end point (or auto-select)
             let p2;
             if (!endInput.value.trim()) {
-                console.log("🎲 Đang tự chọn điểm đến từ Dataset...");
+                console.log("🎲 Auto-selecting destination from dataset...");
                 const dbSuggestions = LOCAL_PLACES.filter(place => {
                     const d = this._getDistance(p1.lat, p1.lng, place.lat, place.lng);
                     return d <= radius && place.name !== p1.name;
@@ -676,24 +680,21 @@ class AppController {
             }
             if (!p2) throw new Error("Vui lòng chọn điểm đến");
 
-            // --- 3. LỌC DATABASE THEO TIÊU CHÍ (Radius & Budget) ---
+            // Filter valid places
             const validPlaces = LOCAL_PLACES.filter(place => {
                 if (place.name === p1.name || place.name === p2.name) return false;
-
-                // Khoảng cách từ điểm khởi hành
                 const d = this._getDistance(p1.lat, p1.lng, place.lat, place.lng);
                 if (d > radius) return false;
 
-                // Ngân sách
                 const priceValue = parseInt(place.price.replace(/\D/g, '')) || 0;
                 if (priceValue > 0 && (priceValue < minB || priceValue > maxB)) return false;
 
                 return true;
             });
 
-            console.log(`🎯 Tìm thấy ${validPlaces.length} điểm phù hợp.`);
+            console.log(`🎯 Found ${validPlaces.length} valid places.`);
 
-            // --- 4. TẠO LỘ TRÌNH THÔNG MINH (Tránh ZigZag) ---
+            // Build route with nearest-neighbor algorithm
             let finalRoute = [p1];
 
             if (numStops > 0 && validPlaces.length > 0) {
@@ -706,36 +707,34 @@ class AppController {
 
                 const priorityTypes = ['sight', 'cafe', 'food', 'another'];
                 let addedCount = 0;
-                let lastPoint = p1; // Điểm tham chiếu để tìm điểm tiếp theo gần nhất
+                let lastPoint = p1;
 
                 for (const type of priorityTypes) {
                     if (addedCount >= numStops) break;
 
                     let items = buckets[type];
                     if (items.length > 0) {
-                        // Sắp xếp các điểm trong nhóm theo khoảng cách tới điểm vừa thêm vào lộ trình
+                        // Sort by distance to last point (nearest neighbor)
                         items.sort((a, b) => {
                             const distA = this._getDistance(lastPoint.lat, lastPoint.lng, a.lat, a.lng);
                             const distB = this._getDistance(lastPoint.lat, lastPoint.lng, b.lat, b.lng);
                             return distA - distB;
                         });
 
-                        // Lấy điểm gần nhất (Nearest Neighbor) để lộ trình mượt hơn
                         const stop = items[0];
                         if (!finalRoute.some(r => r.name === stop.name)) {
                             const newStop = { ...stop, id: 'stop-' + addedCount + '-' + Date.now() };
                             finalRoute.push(newStop);
-                            lastPoint = newStop; // Cập nhật điểm cuối để tìm điểm tiếp theo
+                            lastPoint = newStop;
                             addedCount++;
                         }
                     }
                 }
             }
 
-            // Luôn đẩy điểm kết thúc vào cuối cùng
             finalRoute.push(p2);
 
-            // --- 5. CẬP NHẬT STATE VÀ UI ---
+            // Update state and UI
             this.state.route = finalRoute;
             const container = document.getElementById('route-steps-container');
             if (container) container.innerHTML = '';
@@ -757,7 +756,7 @@ class AppController {
         const form = document.getElementById('route-form');
         if (form) form.onsubmit = (e) => this.handleFormSubmit(e);
 
-        // --- 1. XỬ LÝ TÌM KIẾM SIDEBAR (Giữ nguyên logic của bạn) ---
+        // Sidebar search
         const sidebarSearch = document.getElementById('sidebar-search');
         if (sidebarSearch) {
             let t;
@@ -781,32 +780,26 @@ class AppController {
             };
         }
 
-        // --- 2. FIX LỖI PC: NÚT "+ THÊM ĐIỂM" TRONG LỘ TRÌNH CHI TIẾT ---
-        // Tìm nút dựa trên class (thường là add-step-btn) hoặc ID bạn đã đặt
-        const addStepBtn = document.querySelector('.add-step-btn') || document.getElementById('reopen-suggestion-btn');
-        if (addStepBtn) {
-            addStepBtn.onclick = (e) => {
+        // Add step button
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.add-step-btn');
+            if (btn) {
                 e.preventDefault();
                 const panel = document.getElementById('suggestion-panel');
                 if (panel) {
-                    // Mở Sidebar
                     panel.classList.add('is-visible');
-
-                    // Đồng bộ icon nút mũi tên (nếu có)
                     const toggleBtn = document.getElementById('toggle-suggestion-btn');
                     if (toggleBtn) {
                         toggleBtn.style.display = 'flex';
                         const icon = toggleBtn.querySelector('i');
                         if (icon) icon.className = 'fas fa-chevron-left';
                     }
-
-                    // Tự động focus vào ô tìm kiếm sidebar cho tiện
-                    setTimeout(() => document.getElementById('sidebar-search')?.focus(), 300);
+                    this.updateSuggestionUI();
                 }
-            };
-        }
+            }
+        });
 
-        // --- 3. CÁC NÚT ĐIỀU HƯỚNG VÀ ĐÓNG PANEL ---
+        // Navigation buttons
         const editBtn = document.getElementById('edit-route-btn');
         if (editBtn) editBtn.onclick = () => this.navigateToBuilder();
 
@@ -821,30 +814,17 @@ class AppController {
             };
         }
 
-        // Kích hoạt các module phụ trợ
+        // 🔥 ESSENTIAL: Chat request event listener
+        window.addEventListener('chat-request', (e) => {
+            this.openChatContext(e.detail);
+        });
+
         this.setupDragAndDrop();
         this.setupPanelControls();
         this.setupChat();
-        // Thay thế đoạn gán addStepBtn cũ bằng đoạn này để chắc chắn 100% ăn click
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.add-step-btn');
-            if (btn) {
-                e.preventDefault();
-                const panel = document.getElementById('suggestion-panel');
-                if (panel) {
-                    panel.classList.add('is-visible');
-                    const toggleBtn = document.getElementById('toggle-suggestion-btn');
-                    if (toggleBtn) {
-                        toggleBtn.style.display = 'flex';
-                        const icon = toggleBtn.querySelector('i');
-                        if (icon) icon.className = 'fas fa-chevron-left';
-                    }
-                    this.updateSuggestionUI(); // Cập nhật KM ngay khi mở
-                }
-            }
-        });
     }
 
+    // --- NAVIGATION ---
     navigateToBuilder() {
         document.getElementById('route-builder').style.display = 'block';
         document.getElementById('route-summary').style.display = 'none';
@@ -876,7 +856,7 @@ class AppController {
                 try {
                     const locationData = JSON.parse(rawData);
                     this.addLocationToRoute({ ...locationData, id: 'drag-' + Date.now() + Math.random() });
-                } catch (err) { console.error("Lỗi drop:", err); }
+                } catch (err) { console.error("Drop error:", err); }
             }
         });
     }
@@ -897,8 +877,10 @@ class AppController {
         const floatBtn = document.getElementById('floating-chat-btn');
         const chatWidget = document.getElementById('chat-widget');
         if (!floatBtn || !chatWidget) return;
+        
         Object.assign(floatBtn.style, { zIndex: "99999", position: "fixed", bottom: "30px", right: "20px", display: "flex" });
         Object.assign(chatWidget.style, { zIndex: "99999", position: "fixed", bottom: "90px", right: "20px", backgroundColor: "white" });
+        
         floatBtn.onclick = (e) => {
             e.preventDefault();
             const isHidden = chatWidget.style.display === 'none' || chatWidget.style.display === '';
@@ -913,23 +895,59 @@ class AppController {
                 floatBtn.querySelector('.fa-times').style.display = 'none';
             }
         };
+        
         const sendBtn = document.getElementById('send-msg-btn');
         const input = document.getElementById('chat-input');
+        
         const sendMessage = async () => {
             const txt = input.value.trim();
             if (!txt) return;
+            
             this.ui.addChatMessage(txt, 'user');
             input.value = '';
             if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(true);
+            
             try {
                 const res = await apiService.chat(txt); 
                 const aiResponse = res.reply || res.answer || "Không có phản hồi.";
                 this.ui.addChatMessage(aiResponse, 'ai');
-            } catch (e) { this.ui.addChatMessage("Lỗi kết nối.", 'ai'); } 
-            finally { if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(false); }
+                
+                // Handle location suggestions
+                if (res.selected_locations && res.selected_locations.length > 0) {
+                    console.log("AI suggested", res.selected_locations.length, "locations");
+                    this.state.allSuggestions = res.selected_locations;
+                    this.updateSuggestionUI();
+
+                    this.ui.addChatMessage(`
+                        <span style="font-size:0.85rem; color:#137333;">
+                        <i class="fas fa-check-circle"></i> Tôi đã cập nhật 
+                        <strong>${res.selected_locations.length}</strong> gợi ý 
+                        mới vào Panel bên phải.
+                        </span>
+                    `, 'ai');
+                }
+            } catch (e) { 
+                this.ui.addChatMessage("Lỗi kết nối.", 'ai'); 
+            } finally { 
+                if (this.ui.showTypingIndicator) this.ui.showTypingIndicator(false); 
+            }
         };
+        
         if (sendBtn) sendBtn.onclick = sendMessage;
         if (input) input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    }
+
+    // 🔥 ESSENTIAL: Open chat with context
+    openChatContext(contextName) {
+        if (!document.body.classList.contains('chat-open')) {
+            const floatBtn = document.getElementById('floating-chat-btn');
+            if (floatBtn) floatBtn.click();
+        }
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value = `Gợi ý các địa điểm tương tự như ${contextName}`;
+            input.focus();
+        }
     }
 }
 
