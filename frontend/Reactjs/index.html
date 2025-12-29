@@ -10,25 +10,6 @@
 </head>
 <body>
 
-    <div id="chat-widget">
-        <div class="chat-header">
-            <i class="fas fa-robot" style="font-size: 1.5rem; color: var(--accent-color);"></i>
-            <span>Trợ lý Du lịch AI</span>
-        </div>
-        <div class="chat-messages" id="chat-messages">
-            <div class="message msg-ai" style="background:#fff; padding:12px; border-radius: 12px 12px 12px 0; box-shadow: var(--shadow-sm); width: 85%;">
-                Chào bạn! Mình có thể giúp gì cho chuyến đi sắp tới? 🎒
-            </div>
-        </div>
-        <div class="typing-indicator" id="typing-indicator" style="padding: 0 20px; font-size: 0.8rem; color:#888; display:none;">AI đang soạn tin...</div>
-        <div class="chat-footer">
-            <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
-            <button id="send-msg-btn"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    </div>
-    
-    <button id="floating-chat-btn" title="Chat với AI"><i class="fas fa-comment-alt"></i><i class="fas fa-times" style="display:none;"></i></button>
-
     <div id="control-panel">
         <div id="panel-header">
             <div style="flex: 1;">
@@ -58,9 +39,10 @@
                     </div>
 
                     <div class="row-group" style="align-items: flex-start;">
-                         <div class="input-group" style="flex: 1.2;">
+                        <div class="input-group" style="flex: 1.2;">
                             <label>Bán kính tìm kiếm</label>
-                            <div class="budget-wrapper"> <div class="values">
+                            <div class="budget-wrapper">
+                                <div class="values">
                                     <span id="radius-display">20</span> km
                                 </div>
                                 <div class="slider-container">
@@ -91,7 +73,7 @@
                                 <input type="number" id="waypointCount" value="2" min="0" max="10">
                             </div>
                         </div>
-                        
+
                         <div class="input-group" style="flex: 1.2;">
                             <label>Ngân sách (VNĐ)</label>
                             <div class="budget-wrapper">
@@ -99,7 +81,8 @@
                                     <span id="range1">0đ</span> - <span id="range2">5.0tr</span>
                                 </div>
                                 <div class="slider-container">
-                                    <div class="slider-track"></div>
+                                    <div class="slider-track" id="budget-track"></div>
+
                                     <input type="range" min="0" max="10000000" value="0" step="100000" id="slider-1">
                                     <input type="range" min="0" max="10000000" value="5000000" step="100000" id="slider-2">
                                 </div>
@@ -118,7 +101,7 @@
                     <h3 style="margin:0; font-size:1rem; font-weight:700;">Lộ trình chi tiết</h3>
                     <button id="reopen-suggestion-btn" class="add-step-btn" style="background:white; color:var(--primary-color); border:1px solid var(--primary-color); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:0.8rem;"><i class="fas fa-plus"></i> Thêm điểm</button>
                 </div>
-                
+
                 <div id="route-steps-container"></div>
 
                 <button id="edit-route-btn" class="secondary-btn">
@@ -154,28 +137,48 @@
         <div id="details-content" style="padding:24px; overflow-y:auto; flex:1;"></div>
     </div>
 
-<button id="hand-toggle-btn" title="Đổi tay trái/phải">
-    <i class="fas fa-hand-paper"></i>
-</button>
-<div id="mobile-quick-search" class="mobile-search-popup">
-    <div class="mq-header">
-        <i class="fas fa-search" style="color: #2D6A4F;"></i>
-        <input type="text" id="mq-input" placeholder="Nhập tên địa điểm..." autocomplete="off">
-        <button id="mq-close-btn"><i class="fas fa-times"></i></button>
-    </div>
-    <div id="mq-results">
-        <div style="padding:15px; text-align:center; color:#999; font-size:0.85rem;">
-            Nhập từ khóa để tìm kiếm...
+    <div id="chat-widget">
+        <div class="chat-header">
+            <i class="fas fa-robot" style="font-size: 1.5rem; color: var(--accent-color);"></i>
+            <span>Trợ lý Du lịch AI</span>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="message msg-ai" style="background:#fff; padding:12px; border-radius: 12px 12px 12px 0; box-shadow: var(--shadow-sm); width: 85%;">
+                Chào bạn! Mình có thể giúp gì cho chuyến đi sắp tới? 🎒
+            </div>
+        </div>
+        <div class="typing-indicator" id="typing-indicator" style="padding: 0 20px; font-size: 0.8rem; color:#888; display:none;">AI đang soạn tin...</div>
+        <div class="chat-footer">
+            <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+            <button id="send-msg-btn"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
-</div>
+
+    <button id="floating-chat-btn" title="Chat với AI"><i class="fas fa-comment-alt"></i><i class="fas fa-times" style="display:none;"></i></button>
+
+    <button id="hand-toggle-btn" title="Đổi tay trái/phải">
+        <i class="fas fa-hand-paper"></i>
+    </button>
+    <div id="mobile-quick-search" class="mobile-search-popup">
+        <div class="mq-header">
+            <i class="fas fa-search" style="color: #2D6A4F;"></i>
+            <input type="text" id="mq-input" placeholder="Nhập tên địa điểm..." autocomplete="off">
+            <button id="mq-close-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="mq-results">
+            <div style="padding:15px; text-align:center; color:#999; font-size:0.85rem;">
+                Nhập từ khóa để tìm kiếm...
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./env.js"></script>
     <script type="module" src="./js/main.js"></script>
     <script src="https://unpkg.com/mobile-drag-drop/index.min.js"></script>
     <script>
         MobileDragDrop.polyfill({ holdToDrag: 300, dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride });
-        window.addEventListener('touchmove', function() {}, {passive: false});
+        window.addEventListener('touchmove', function () { }, { passive: false });
     </script>
 </body>
 </html>
