@@ -75,8 +75,6 @@ export class UIModule {
     // --- CẬP NHẬT: DANH SÁCH GỢI Ý (ĐÃ SỬA LỖI LẶP ĐỊA CHỈ) ---
     // modules/ui.js
 
-    // --- FILE: js/modules/ui.js ---
-
     renderSuggestionList(places, excludeIds = []) {
         const container = document.getElementById('suggestion-list');
         if (!container) return;
@@ -89,27 +87,27 @@ export class UIModule {
             card.className = 'l-card';
             card.setAttribute('data-id', item.id);
 
-            // 🔥 SỬA CHỖ NÀY: Nếu distance là null thì hiện dấu gạch hoặc ẩn luôn
-            let distDisplay = '';
-            if (item.distance !== null && item.distance !== undefined) {
-                distDisplay = `${item.distance.toFixed(1)} km`;
-            } else {
-                distDisplay = ''; // Hoặc '-- km'
-            }
-
+            const distDisplay = item.distance ? `${item.distance.toFixed(1)} km` : '-- km';
             const imageUrl = item.img || 'https://via.placeholder.com/150?text=No+Image';
 
+            // 🔥 QUAN TRỌNG: Thêm pointer-events: none vào tất cả thẻ con để không bị "nuốt" click
             card.innerHTML = `
-                <img src="${imageUrl}" alt="${item.name}" style="pointer-events: none;">
-                <div style="flex:1; min-width:0; padding-right: 10px; pointer-events: none;">
-                    <h4 style="margin:0 0 4px 0; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.name}</h4>
-                    <p style="margin:0; font-size:0.75rem; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.address}</p>
-                </div>
-                ${distDisplay ? `<div class="card-distance" style="font-size: 0.8rem; font-weight: 700; color: var(--primary-color); white-space: nowrap; pointer-events: none;">${distDisplay}</div>` : ''}
-            `;
+            <img src="${imageUrl}" alt="${item.name}" style="pointer-events: none;">
+            <div style="flex:1; min-width:0; padding-right: 10px; pointer-events: none;">
+                <h4 style="margin:0 0 4px 0; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.name}</h4>
+                <p style="margin:0; font-size:0.75rem; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events: none;">${item.address}</p>
+            </div>
+            <div class="card-distance" style="font-size: 0.8rem; font-weight: 700; color: var(--primary-color); white-space: nowrap; pointer-events: none;">
+                ${distDisplay}
+            </div>
+        `;
 
-            card.onclick = () => {
-                if (window.App) window.App.showDetails(item);
+            // 🔥 Gán sự kiện click trực tiếp
+            card.onclick = (e) => {
+                console.log("📍 Đang mở chi tiết cho:", item.name);
+                if (window.App && typeof window.App.showDetails === 'function') {
+                    window.App.showDetails(item);
+                }
             };
 
             container.appendChild(card);
@@ -238,11 +236,7 @@ export class UIModule {
             div.style.cssText = "background:var(--accent-color); color:white; padding:10px 14px; margin-top:10px; border-radius: 12px 12px 0 12px; box-shadow: 0 2px 4px rgba(231, 111, 81, 0.2); align-self: flex-end; max-width: 80%;";
         }
         
-        if (type === 'ai') {
-            div.innerHTML = this._parseMarkdown(text);
-        } else {
-            div.innerText = text;
-        }
+        div.innerHTML = text;
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
     }
@@ -253,52 +247,11 @@ export class UIModule {
             this.dom.chat.messages.scrollTop = this.dom.chat.messages.scrollHeight;
         }
     }
-    // File: js/modules/ui.js
-
-    // Thêm hàm này vào trong class UIModule (ví dụ đặt dưới hàm showTypingIndicator)
-    openChatWindow() {
-        const chatWidget = document.getElementById('chat-widget');
-        const floatBtn = document.getElementById('floating-chat-btn');
-
-        if (chatWidget && floatBtn) {
-            // Hiện khung chat
-            chatWidget.style.display = 'flex';
-            // Đổi icon nút tròn thành dấu X
-            const iconComment = floatBtn.querySelector('.fa-comment-alt');
-            const iconClose = floatBtn.querySelector('.fa-times');
-            if (iconComment) iconComment.style.display = 'none';
-            if (iconClose) iconClose.style.display = 'block';
-
-            // Focus vào ô nhập liệu
-            setTimeout(() => {
-                const input = document.getElementById('chat-input');
-                if (input) input.focus();
-            }, 100);
-        }
-    }
 
     _refreshStepIndices() {
         const steps = this.dom.lists.routeSteps.querySelectorAll('.step-index');
         steps.forEach((el, index) => {
             el.innerText = index + 1;
         });
-    }
-    // Thêm hàm này vào trong class UIModule
-    _parseMarkdown(text) {
-        if (!text) return '';
-
-        // 1. Chuyển đổi in đậm: **text** -> <strong>text</strong>
-        let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-        // 2. Chuyển đổi in nghiêng: *text* -> <em>text</em>
-        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-        // 3. Chuyển đổi xuống dòng: \n -> <br>
-        html = html.replace(/\n/g, '<br>');
-
-        // 4. Chuyển đổi gạch đầu dòng: * text -> • text (cho gọn trong khung chat)
-        html = html.replace(/^\s*\*\s+/gm, '• ');
-
-        return html;
     }
 }

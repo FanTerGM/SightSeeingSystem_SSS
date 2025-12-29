@@ -238,75 +238,67 @@ class ApiService {
         return this._mapApiToApp({ name: name, display_name: 'Không tìm thấy thông tin', lat: 10.7769, lon: 106.7009 });
     }
 
-    // --- API 3: TÍNH LỘ TRÌNH (ĐÃ FIX LỖI 502 & LAG) ---
-    // --- API 3: TÍNH LỘ TRÌNH (ĐÃ NÂNG CẤP CHỌN XE) ---
-    // --- API 3: TÍNH LỘ TRÌNH (TRẢ VỀ TỪNG ĐOẠN) ---
-    // --- FILE: js/services/api.js ---
+    // 🔥 ESSENTIAL: API 3 - GET PLACE DETAILS BY REF_ID
+    async getPlaceDetails(refId) {
+        if (this.useMock) {
+            return this._mockDelay({ lat: 10.77, lng: 106.69 });
+        }
+        
+        try {
+            const path = `/vietmap/getPlace?place_id=${encodeURIComponent(refId)}`;
+            const data = await this._apiGet(path);
+            return data;
+        } catch (error) {
+            console.error("Error getPlaceDetails:", error);
+            throw error;
+        }
+    }
 
-    async calculateRoute(routeList, vehicleType = 'car') {
+    // --- API 4: ROUTE CALCULATION (FIXED FOR MULTI-WAYPOINT) ---
+    async calculateRoute(routeList) {
         if (!routeList || routeList.length < 2) return null;
 
-        // 1. Map loại xe
-        let apiVehicle = "car";
-        if (vehicleType === "motorbike") apiVehicle = "motorcycle";
-        if (vehicleType === "walking") apiVehicle = "foot";
-
-        // 2. Logic Mock (Giữ nguyên, không lỗi)
         if (this.useMock) {
-            const segments = [];
-            let fullPath = [];
-
-            for (let i = 0; i < routeList.length - 1; i++) {
-                const start = routeList[i];
-                const end = routeList[i + 1];
-                const segmentPath = [
-                    [start.lat, start.lng],
-                    [start.lat + (end.lat - start.lat) / 2, start.lng + (end.lng - start.lng) / 2],
-                    [end.lat, end.lng]
-                ];
-
-                let speed = vehicleType === 'walking' ? 5 : 40;
-                const dist = 2.5;
-                const time = (dist / speed) * 60;
-
-                segments.push({
-                    path: segmentPath,
-                    distance: dist * 1000,
-                    duration: time * 60000
-                });
-                fullPath = fullPath.concat(segmentPath);
-            }
-
-            return this._mockDelay({
-                success: true,
-                segments: segments,
-                fullPath: fullPath
+            const path = [];
+            routeList.forEach((point, index) => {
+                path.push([point.lat, point.lng]);
+                if (index < routeList.length - 1) {
+                    const next = routeList[index + 1];
+                    for (let i = 1; i <= 5; i++) path.push([point.lat + (next.lat - point.lat) * (i / 6), point.lng + (next.lng - point.lng) * (i / 6)]);
+                }
             });
+            return this._mockDelay({ success: true, distance: `${(routeList.length * 2.5).toFixed(1)} km`, duration: `${routeList.length * 15} phút`, path: path });
         }
 
-        // 🔥 PHẦN SỬA LỖI Ở ĐÂY 🔥
-        // Khai báo biến TRƯỚC khối try để dùng được ở mọi nơi
-        let segments = [];
-        let fullPath = [];
-        let totalDistance = 0; // ✅ Khai báo ở đây
-        let totalDuration = 0; // ✅ Khai báo ở đây
-
         try {
+            let fullPath = [];
+            let totalDistance = 0;
+            let totalDuration = 0;
+
+            // Loop through segments with delay to prevent 502 errors
             for (let i = 0; i < routeList.length - 1; i++) {
                 const start = routeList[i];
                 const end = routeList[i + 1];
 
-                if (Math.abs(start.lat - end.lat) < 0.0001 && Math.abs(start.lng - end.lng) < 0.0001) continue;
+                // Skip if points are identical
+                if (Math.abs(start.lat - end.lat) < 0.0001 && Math.abs(start.lng - end.lng) < 0.0001) {
+                    console.warn(`Segment ${i+1}: Identical points, skipping.`);
+                    continue; 
+                }
 
                 const payload = {
                     start_lat: start.lat, start_lng: start.lng,
                     end_lat: end.lat, end_lng: end.lng,
-                    vehicle: apiVehicle
+                    vehicle: "car"
                 };
 
                 const segmentResult = await this._apiPost("/vietmap/route", payload);
-
-                if (!segmentResult) continue;
+                
+                // If segment fails, skip and continue
+                if (!segmentResult) {
+                    console.warn(`Segment ${i+1} failed or no route available.`);
+                    continue; 
+                }
 
                 const firstRoute = Array.isArray(segmentResult) ? segmentResult[0] : segmentResult;
                 const p0 = firstRoute?.paths?.[0];
@@ -314,36 +306,28 @@ class ApiService {
                 if (p0 && p0.points) {
                     const decoded = this._decodeVietmapPolyline(p0.points);
                     if (decoded.length > 0) {
-                        // Lưu từng đoạn
-                        const segDist = p0.distance || 0;
-                        const segTime = p0.time || 0;
-
-                        segments.push({
-                            path: decoded,
-                            distance: segDist,
-                            duration: segTime
-                        });
-
-                        // Cộng dồn tổng
-                        totalDistance += segDist;
-                        totalDuration += segTime;
-
-                        if (fullPath.length > 0) fullPath = fullPath.concat(decoded.slice(1));
-                        else fullPath = fullPath.concat(decoded);
+                        // Append decoded path, skipping first point of subsequent segments
+                        if (fullPath.length > 0) {
+                            fullPath = fullPath.concat(decoded.slice(1));
+                        } else {
+                            fullPath = fullPath.concat(decoded);
+                        }
+                        totalDistance += (p0.distance || 0);
+                        totalDuration += (p0.time || 0);
                     }
                 }
+
+                // 🔥 CRITICAL: 200ms delay between requests to prevent 502
                 await this._sleep(200);
             }
 
-            if (segments.length === 0) return null;
+            if (fullPath.length === 0) return null;
 
-            // Trả về kết quả
             return {
                 success: true,
-                segments: segments,
-                fullPath: fullPath,
-                distance: totalDistance, // ✅ Biến này giờ đã được định nghĩa
-                duration: totalDuration  // ✅ Biến này giờ đã được định nghĩa
+                distance: totalDistance > 0 ? `${(totalDistance / 1000).toFixed(1)} km` : "N/A",
+                duration: totalDuration > 0 ? `${Math.round(totalDuration / 60000)} phút` : "N/A",
+                path: fullPath
             };
 
         } catch (error) {
